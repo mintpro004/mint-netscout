@@ -23,7 +23,13 @@ def setup():
 
     # 1. Install Python Dependencies
     log("Installing dependencies from requirements.txt...")
-    if not run_cmd(f"{sys.executable} -m pip install -r requirements.txt"):
+    pip_cmd = f"{sys.executable} -m pip install -r requirements.txt"
+    
+    # Handle PEP 668 (externally managed environment) on modern Linux
+    if system == "Linux":
+        pip_cmd += " --break-system-packages"
+    
+    if not run_cmd(pip_cmd):
         error("Failed to install dependencies.")
 
     # 2. OS-Specific Requirements
