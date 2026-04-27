@@ -13,31 +13,21 @@ NetScout is a professional-grade, real-time network intelligence and monitoring 
 ## 💻 Installation
 
 ### Self-Healing Installation
-The included `setup.py` automatically configures your environment, installs dependencies, and sets necessary system capabilities.
+The included `setup.py` automatically configures your environment. It attempts a direct installation and, if blocked by your OS (PEP 668), it will automatically create a secure virtual environment and a launcher script.
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/mintpro004/mint-netscout.git
 cd mint-netscout
 
-# 2. Run the setup script (requires sudo for capabilities on Linux)
+# 2. Run the setup script (recommended)
 sudo python3 setup.py
 ```
 
-### Manual Installation
-```bash
-pip install -r requirements.txt
-python3 -m backend.api.server
-```
-
-## 📱 Chromebook (Crostini) Support
-NetScout is fully optimized for Chromebooks. Because Crostini uses a virtualized network bridge, follow these tips:
-1. **Permissions:** Always run the `setup.py` with `sudo` to ensure `python3` has `CAP_NET_RAW` permissions. This allows ARP scanning through the bridge.
-2. **Aggressive Mode:** If standard discovery misses a device, use the **☢ AGGRESSIVE** scan button to probe the subnet via TCP.
-
-## 🛠️ Usage
-- **Web Dashboard:** `http://localhost:5000`
-- **CLI Interface:** `python3 -m backend.cli scan`
+### 🛠️ Usage
+- **Primary:** `./netscout.sh` (Created by setup)
+- **Manual:** `python3 -m backend.api.server`
+- **Dashboard:** `http://localhost:5000`
 
 ---
 Developed by **mintprojects** | v2.1.0-PRO
