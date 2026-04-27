@@ -15,15 +15,13 @@ NetScout includes a **Self-Healing Setup** script that handles dependencies and 
 git clone https://github.com/mintpro004/mint-netscout.git
 cd mint-netscout
 
-# Run the setup script (requires sudo for network permissions)
-sudo python3 setup.py
+# Run the robust installer (handles venv and dependencies automatically)
+sudo bash install.sh
 ```
 
-#### **Manual Installation**
-If you prefer to manage dependencies manually:
+#### **Python Setup Alternative**
 ```bash
-pip install -r requirements.txt --break-system-packages
-python3 -m backend.api.server
+sudo python3 setup.py
 ```
 
 ---

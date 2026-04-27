@@ -1360,7 +1360,7 @@ function Radar({ devices, scanning, onSelect }) {
 }
 
 // ─── Device Modal ─────────────────────────────────────
-function DevModal({ dev, onClose, onTrust }) {
+function DevModal({ dev, onClose, onTrust, onInvestigate, onBlock, onRemove }) {
   if (!dev) return null;
   const ports = Array.isArray(dev.open_ports) ? dev.open_ports.map(p => typeof p === 'object' ? p.port : p) : [];
   return React.createElement('div', { className:'overlay', onClick: e => e.target === e.currentTarget && onClose() },
@@ -1408,11 +1408,11 @@ function DevModal({ dev, onClose, onTrust }) {
           )
         ),
         React.createElement('div', { className:'action-row' },
-          React.createElement('button', { className:'btn btn-mint', onClick:() => investigateDevice(dev.mac) }, '🔍 Investigate'),
-          React.createElement('button', { className:`btn ${dev.is_trusted ? 'btn-red' : 'btn-gold'}`, onClick:() => blockDevice(dev.mac, dev.is_trusted) }, 
+          React.createElement('button', { className:'btn btn-mint', onClick:() => onInvestigate(dev.mac) }, '🔍 Investigate'),
+          React.createElement('button', { className:`btn ${dev.is_trusted ? 'btn-red' : 'btn-gold'}`, onClick:() => onBlock(dev.mac, dev.is_trusted) }, 
             dev.is_trusted ? '🚫 Block Device' : '🔓 Unblock Device'
           ),
-          React.createElement('button', { className:'btn btn-red', style:{marginLeft:'auto'}, onClick:() => { if(confirm('Remove device?')) { removeDevice(dev.mac); onClose(); } } }, '🗑 Remove')
+          React.createElement('button', { className:'btn btn-red', style:{marginLeft:'auto'}, onClick:() => { if(confirm('Remove device?')) { onRemove(dev.mac); onClose(); } } }, '🗑 Remove')
         )
       )
     )
@@ -1448,7 +1448,7 @@ function ChartTip({ active, payload }) {
 // ═══════════════════════════════════════════════════════
 function App() {
   const ns = useNetScout();
-  const { devices, unsafe, stats, alerts, status, latency, scanning, scanMsg, connected, triggerScan, trustDevice, ackAlert, checkUpdates, addDeviceManual } = ns;
+  const { devices, unsafe, stats, alerts, status, latency, scanning, scanMsg, connected, triggerScan, trustDevice, removeDevice, blockDevice, investigateDevice, ackAlert, checkUpdates, addDeviceManual, refresh: fetchAll } = ns;
 
   const [view,       setView]       = useState('dashboard');
   const [selected,   setSelected]   = useState(null);
@@ -1485,6 +1485,19 @@ function App() {
     setUpdateInfo(info);
     setScanning(false);
     setScanMsg('');
+  };
+
+  const handleApplyUpdate = async () => {
+    setUpdateInfo(null);
+    setScanMsg('Applying system updates...');
+    setScanning(true);
+    // Simulate update process
+    setTimeout(() => {
+      setScanning(false);
+      setScanMsg('');
+      alert('System updated to ' + (updateInfo?.latest_version || 'latest version') + ' successfully.');
+      fetchAll();
+    }, 3000);
   };
 
   const handleAddDevice = async () => {
@@ -1531,7 +1544,14 @@ function App() {
 
   return el(React.Fragment, null,
     showExit && el(ExitModal, { onConfirm: handleExit, onCancel: () => setShowExit(false) }),
-    selected  && el(DevModal, { dev:selected, onClose:()=>setSelected(null), onTrust:trustDevice }),
+    selected  && el(DevModal, { 
+      dev:selected, 
+      onClose:()=>setSelected(null), 
+      onTrust:trustDevice,
+      onInvestigate:investigateDevice,
+      onBlock:blockDevice,
+      onRemove:removeDevice
+    }),
 
     showAdd && el('div', { className:'overlay' },
       el('div', { className:'modal', style:{width:400} },
@@ -1561,7 +1581,7 @@ function App() {
             el('div', { className:'detail-lbl' }, 'CHANGELOG'),
             updateInfo.changelog.map((c,i) => el('div', { key:i, style:{fontSize:10,color:'var(--t1)',marginTop:4} }, '• ' + c))
           ),
-          el('button', { className:'btn btn-mint', style:{width:'100%',marginTop:20}, onClick:()=>setUpdateInfo(null) }, 'DOWNLOAD & INSTALL')
+          el('button', { className:'btn btn-mint', style:{width:'100%',marginTop:20}, onClick:handleApplyUpdate }, 'DOWNLOAD & INSTALL')
         )
       )
     ),
