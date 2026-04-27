@@ -61,10 +61,17 @@ def setup():
         if not run_cmd(f"sudo setcap cap_net_raw,cap_net_admin+eip {real_py}"):
             log("Note: Could not set capabilities. Sudo will be required for scans.")
 
-    # 4. Create Universal Launcher (Easy Start)
+    # 4. Create Universal Launcher (Easy Start with Self-Healing Port)
     launcher = "netscout.sh"
     with open(launcher, "w") as f:
-        f.write("#!/bin/bash\n")
+        f.write("#!/bin/bash\n\n")
+        f.write("# Self-Healing: Clear port 5000 if already in use\n")
+        f.write("PID=$(sudo lsof -t -i:5000)\n")
+        f.write("if [ ! -z \"$PID\" ]; then\n")
+        f.write("    echo \"[*] Clearing stale NetScout instance (PID: $PID)...\"\n")
+        f.write("    sudo kill -9 $PID 2>/dev/null\n")
+        f.write("    sleep 1\n")
+        f.write("fi\n\n")
         f.write("echo '🛰️  Launching Mint NetScout SIGINT PRO...'\n")
         f.write(f"sudo {active_python} -m backend.api.server\n")
     run_cmd(f"chmod +x {launcher}")
