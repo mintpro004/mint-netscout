@@ -61,14 +61,22 @@ def setup():
         final_run_msg = "python3 -m backend.api.server"
 
     # 3. Linux Capabilities (Security Hardening)
+    target_py = os.path.realpath(sys.executable)
     if system == "Linux":
-        log("Setting capabilities for raw socket access...")
-        # Try to set caps on the main python or venv python
-        target_py = sys.executable
+        log(f"Setting capabilities for raw socket access on {target_py}...")
         if not run_cmd(f"sudo setcap cap_net_raw,cap_net_admin+eip {target_py}"):
             log("Note: Could not set capabilities. You may need to run with sudo.")
 
-    # 4. Initialize Database
+    # 4. Create Universal Launcher (Convenience)
+    launcher = "netscout.sh"
+    with open(launcher, "w") as f:
+        f.write("#!/bin/bash\n")
+        f.write(f"echo '🛰️ Launching Mint NetScout SIGINT PRO...'\n")
+        f.write(f"sudo {target_py} -m backend.api.server\n")
+    run_cmd(f"chmod +x {launcher}")
+    log(f"✅ Created launcher: ./{launcher}")
+
+    # 5. Initialize Database
     log("Initializing local database...")
     try:
         # We try to import locally if possible
