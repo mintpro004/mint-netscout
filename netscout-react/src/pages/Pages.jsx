@@ -1,5 +1,5 @@
 import { Panel, PanelHeader, Tag, Badge, Btn } from '../components/ui'
-import { fmtTime, fmtAgo, SEV_COLOR } from '../utils'
+import { fmtTime, SEV_COLOR } from '../utils'
 import styles from './Pages.module.css'
 
 /* ── Threats ─────────────────────────────────────────────────────────────── */

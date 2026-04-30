@@ -19,15 +19,36 @@ from backend.database.models import get_db, DeviceRepository, AlertRepository, S
 
 logger = logging.getLogger("netscout.monitor")
 
-class Alert:
-    def __init__(self, alert_type: str, message: str, severity: str = "info", device_ip: str = "", device_mac: str = "", device_hostname: str = "", **kwargs):
+class NetworkAlert:
+    SEVERITY_MAP = {
+        "new_device": "warning",
+        "unknown_device": "critical",
+        "device_left": "warning",
+        "scan_complete": "info",
+        "device_joined": "info"
+    }
+    
+    EMOJI_MAP = {
+        "new_device": "⚠️ ",
+        "unknown_device": "☣️ ",
+        "device_left": "📤",
+        "scan_complete": "✅",
+        "device_joined": "📥",
+        "threat_detected": "🔥"
+    }
+
+    def __init__(self, alert_type: str, message: str = "", severity: str = None, device_ip: str = "", device_mac: str = "", device_hostname: str = "", **kwargs):
         self.alert_type = alert_type
         self.message = message
-        self.severity = severity
+        self.severity = severity or self.SEVERITY_MAP.get(alert_type, "info")
         self.timestamp = time.time()
         self.device_ip = device_ip
         self.device_mac = device_mac
         self.device_hostname = device_hostname
+
+    @property
+    def emoji(self) -> str:
+        return self.EMOJI_MAP.get(self.alert_type, "🔔")
 
     def to_dict(self) -> dict:
         return {
@@ -103,7 +124,7 @@ class MonitorWorker:
             self.current_devices = [d.to_dict() for d in discovered]
 
             # Real alert for scan completion
-            self.on_event(Alert("scan_complete", f"Discovery cycle complete: {len(discovered)} real assets identified."))
+            self.on_event(NetworkAlert("scan_complete", f"Discovery cycle complete: {len(discovered)} real assets identified."))
         finally:
             db.close()
 
@@ -115,7 +136,7 @@ class MonitorWorker:
         existing = repo.get_by_mac(device.mac) if device.mac else repo.get_by_ip(device.ip)
 
         if not existing:
-            self.on_event(Alert(
+            self.on_event(NetworkAlert(
                 alert_type="new_device",
                 severity="warning",
                 device_ip=device.ip,
@@ -124,7 +145,7 @@ class MonitorWorker:
                 message=f"SECURITY ALERT: New unverified asset detected on network: {device.ip}"
             ))
         elif not existing.is_online:
-            self.on_event(Alert(
+            self.on_event(NetworkAlert(
                 alert_type="device_joined",
                 severity="info",
                 device_ip=device.ip,
@@ -139,4 +160,47 @@ class MonitorWorker:
             "running": self._running,
             "scan_interval": self.scan_interval,
             "device_count": len(self.current_devices)
+        }
+
+class LatencyTester:
+    """
+    Measures network latency to a target host over multiple samples.
+    """
+    def __init__(self, target: str = "8.8.8.8", count: int = 4, timeout: float = 1.0):
+        self.target = target
+        self.count = count
+        self.timeout = timeout
+
+    def ping_series(self) -> dict:
+        import subprocess
+        import platform
+        system = platform.system()
+        
+        samples = []
+        for _ in range(self.count):
+            if system == "Windows":
+                cmd = ["ping", "-n", "1", "-w", str(int(self.timeout * 1000)), self.target]
+            else:
+                cmd = ["ping", "-c", "1", "-W", str(int(self.timeout)), self.target]
+            
+            t_start = time.perf_counter()
+            try:
+                result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=self.timeout + 0.5)
+                if result.returncode == 0:
+                    samples.append((time.perf_counter() - t_start) * 1000)
+            except Exception:
+                pass
+            time.sleep(0.1)
+
+        if not samples:
+            return {"error": "Target unreachable"}
+
+        return {
+            "target": self.target,
+            "count": len(samples),
+            "samples": samples,
+            "min_ms": round(min(samples), 2),
+            "max_ms": round(max(samples), 2),
+            "avg_ms": round(sum(samples) / len(samples), 2),
+            "jitter_ms": round(max(samples) - min(samples), 2) if len(samples) > 1 else 0
         }

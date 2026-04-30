@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Panel, PanelHeader, Tag } from '../components/ui'
-import { deviceIcon, fmtAgo, fmtTime, SEV_COLOR } from '../utils'
+import { deviceIcon, fmtAgo, SEV_COLOR } from '../utils'
 import styles from './Dashboard.module.css'
 
 /* ── Radar ───────────────────────────────────────────────────────────────── */

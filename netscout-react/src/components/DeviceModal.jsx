@@ -17,9 +17,9 @@ export default function DeviceModal({ mac, devices, onClose, onInvestigate, onBl
     [devices, mac]
   )
 
-  if (!dev) return null
+  const ports    = useMemo(() => dev ? parsePorts(dev.open_ports) : [], [dev])
 
-  const ports    = useMemo(() => parsePorts(dev.open_ports), [dev.open_ports])
+  if (!dev) return null
   const isBlocked = !dev.is_trusted
 
   const handleInvestigate = async () => {

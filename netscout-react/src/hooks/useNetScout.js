@@ -82,7 +82,7 @@ export function useNetScout() {
       setScanning(false); setScanMsg('')
       if (res.success) setDevices(p => p.map(d => d.mac === mac ? { ...d, open_ports: res.ports || [] } : d))
       return res
-    } catch (e) {
+    } catch {
       setScanning(false); setScanMsg('')
       return null
     }
@@ -100,14 +100,14 @@ export function useNetScout() {
       const next = new Set(prev)
       if (next.has(mac)) next.delete(mac)
       else next.add(mac)
-      try { localStorage.setItem('ns_hidden', JSON.stringify([...next])) } catch {}
+      try { localStorage.setItem('ns_hidden', JSON.stringify([...next])) } catch (err) { console.error(err) }
       return next
     })
   }, [])
 
   const clearHidden = useCallback(() => {
     setHiddenMacs(new Set())
-    try { localStorage.removeItem('ns_hidden') } catch {}
+    try { localStorage.removeItem('ns_hidden') } catch (err) { console.error(err) }
   }, [])
 
   // ── Derived state ─────────────────────────────────────────────────────────

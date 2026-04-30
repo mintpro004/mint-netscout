@@ -247,19 +247,14 @@ class DeviceRepository:
         self.db = db
 
     def upsert_device(self, device_data: dict) -> Device:
-        """Insert or update a device by MAC address or IP fallback."""
+        """Insert or update a device by MAC address."""
         mac = device_data.get("mac", "")
         ip = device_data.get("ip", "")
-        if not mac and not ip:
+        if not mac:
             return None
 
-        # Try MAC first, then IP
-        device = None
-        if mac:
-            device = self.db.query(Device).filter_by(mac=mac).first()
-        if not device and ip:
-            # If no MAC match, try IP match for devices that also don't have a MAC
-            device = self.db.query(Device).filter_by(ip=ip, mac="").first()
+        # Try MAC first
+        device = self.db.query(Device).filter_by(mac=mac).first()
 
         if device:
             # Update existing

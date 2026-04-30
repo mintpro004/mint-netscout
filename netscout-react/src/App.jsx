@@ -17,7 +17,7 @@ export default function App() {
   const {
     devices, visible, hidden, online, trusted, unsafe, alerts, unacked,
     status, scanning, scanMsg, connected, hiddenMacs,
-    triggerScan, trustDevice, blockDevice, removeDevice,
+    triggerScan, blockDevice, removeDevice,
     investigateDevice, ackAlert, hideDevice, clearHidden,
     checkUpdates, addDevice, fetchAll,
   } = ns

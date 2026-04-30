@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import styles from './Topbar.module.css'
 
-export default function Topbar({ onlineCount, totalCount, trustedCount, threatCount, connected, scanning, onScan, onAggressiveScan }) {
+export default function Topbar({ onlineCount, totalCount, trustedCount, threatCount, connected, scanning, onScan }) {
   const [clock, setClock] = useState(() =>
     new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   )
