@@ -1,0 +1,98 @@
+.top {
+  grid-area: top;
+  background: var(--abyss);
+  border-bottom: 1px solid var(--b1);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 10;
+  position: relative;
+}
+.top::after {
+  content: '';
+  position: absolute; bottom: -1px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,255,170,.25), transparent);
+}
+
+.metrics { display: flex; flex: 1; }
+.metric {
+  padding: 0 20px;
+  border-right: 1px solid var(--b1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.metric:first-child { border-left: 1px solid var(--b1); }
+.metricVal {
+  font-family: var(--f-hud);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--mint);
+  line-height: 1;
+  text-shadow: 0 0 12px var(--mint-g);
+}
+.metricLbl {
+  font-family: var(--f-data);
+  font-size: 7.5px;
+  color: var(--t3);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clock {
+  font-family: var(--f-data);
+  font-size: 12px;
+  color: var(--t2);
+  letter-spacing: 1.5px;
+  min-width: 72px;
+  text-align: right;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: 20px;
+  border: 1px solid;
+  font-family: var(--f-hud);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.chipLive { border-color: rgba(0,255,170,.3); color: var(--mint); background: var(--mint-d); }
+.chipDead { border-color: rgba(255,34,85,.3); color: var(--red);  background: var(--red-d); }
+.chipDot  { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+
+.scanBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  background: transparent;
+  border: 1px solid var(--mint);
+  border-radius: 6px;
+  color: var(--mint);
+  font-family: var(--f-hud);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all .2s var(--ease);
+  position: relative;
+  overflow: hidden;
+}
+.scanBtn:hover:not(:disabled) { background: var(--mint-d); box-shadow: 0 0 20px var(--mint-g); }
+.scanBtn:disabled              { opacity: .5; cursor: not-allowed; }
+.scanning                      { border-color: var(--gold); color: var(--gold); animation: mintGlow 1.5s infinite; }
+.scanBtnRed                    { border-color: var(--red); color: var(--red); }
+.scanBtnRed:hover:not(:disabled) { background: var(--red-d); box-shadow: 0 0 16px rgba(255,34,85,.3); }

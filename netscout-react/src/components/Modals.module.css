@@ -1,0 +1,28 @@
+.body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.row { display: flex; gap: 10px; }
+
+/* Update */
+.updateVer    { font-family: var(--f-hud); font-size: 14px; color: var(--mint); }
+.updateCur    { font-family: var(--f-data); font-size: 10px; color: var(--t2); }
+.changelogBox { background: var(--abyss); border: 1px solid var(--b1); border-radius: 7px; padding: 12px; }
+.changelogTitle { font-family: var(--f-hud); font-size: 8px; letter-spacing: 2px; color: var(--t3); text-transform: uppercase; margin-bottom: 8px; }
+.changelogItem  { font-family: var(--f-data); font-size: 10px; color: var(--t1); margin-top: 5px; }
+.upToDate     { text-align: center; padding: 20px 0; }
+.upToDateIcon { font-size: 36px; margin-bottom: 12px; }
+.upToDateTitle{ font-family: var(--f-hud); font-size: 13px; color: var(--mint); letter-spacing: 2px; }
+.upToDateSub  { font-family: var(--f-data); font-size: 10px; color: var(--t2); margin-top: 6px; }
+
+/* Exit */
+.exitBody {
+  padding: 32px;
+  text-align: center;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.exitIcon  { font-size: 40px; }
+.exitTitle { font-family: var(--f-hud); font-size: 16px; font-weight: 800; color: var(--t0); letter-spacing: 2px; }
+.exitSub   { font-family: var(--f-data); font-size: 10px; color: var(--t2); letter-spacing: 1px; }

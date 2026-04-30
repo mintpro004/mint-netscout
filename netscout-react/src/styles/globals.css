@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Share+Tech+Mono&family=Exo+2:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap');
+
+:root {
+  /* Palette */
+  --void:    #020408;
+  --abyss:   #040810;
+  --surface: #081420;
+  --raised:  #0c1e30;
+  --glass:   rgba(8,20,32,0.85);
+
+  /* Accents */
+  --mint:    #00ffaa;
+  --mint-d:  rgba(0,255,170,0.12);
+  --mint-g:  rgba(0,255,170,0.3);
+  --mint-dim:#00c880;
+  --cyan:    #00d4ff;
+  --cyan-d:  rgba(0,212,255,0.1);
+  --gold:    #ffcc00;
+  --gold-d:  rgba(255,204,0,0.1);
+  --red:     #ff2255;
+  --red-d:   rgba(255,34,85,0.12);
+  --purple:  #9d50ff;
+
+  /* Borders */
+  --b1: rgba(0,255,170,0.08);
+  --b2: rgba(0,255,170,0.2);
+  --b3: rgba(0,255,170,0.45);
+
+  /* Text */
+  --t0: #f0f8ff;
+  --t1: #a8c8e8;
+  --t2: #506880;
+  --t3: #283848;
+
+  /* Typography */
+  --f-hud:  'Orbitron', sans-serif;
+  --f-data: 'Share Tech Mono', monospace;
+  --f-body: 'Exo 2', sans-serif;
+
+  /* Motion */
+  --ease:  cubic-bezier(0.4, 0, 0.2, 1);
+  --ease2: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  background: var(--void);
+  color: var(--t1);
+  font-family: var(--f-body);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--b2); border-radius: 2px; }
+
+/* ── Keyframes ─────────────────────────────────────────────────────────── */
+
+@keyframes fadeUp      { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+@keyframes fadeIn      { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideRight  { from { opacity: 0; transform: translateX(-20px) } to { opacity: 1; transform: none } }
+@keyframes slideDown   { from { opacity: 0; transform: translateY(-12px) } to { opacity: 1; transform: none } }
+@keyframes pulse       { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+@keyframes ping        { 0% { transform: scale(1); opacity: .8 } 100% { transform: scale(2.6); opacity: 0 } }
+@keyframes sweep       { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+@keyframes mintGlow    { 0%,100% { box-shadow: 0 0 8px var(--mint-g) } 50% { box-shadow: 0 0 24px var(--mint-g), 0 0 48px rgba(0,255,170,.1) } }
+@keyframes redGlow     { 0%,100% { box-shadow: 0 0 6px rgba(255,34,85,.4) } 50% { box-shadow: 0 0 18px rgba(255,34,85,.7) } }
+@keyframes gridMove    { from { background-position: 0 0 } to { background-position: 60px 60px } }
+@keyframes spin        { from { transform: rotate(0) } to { transform: rotate(360deg) } }
+@keyframes flow        { 0% { background-position: 0% 50% } 100% { background-position: 200% 50% } }
+@keyframes alertFlash  { 0%,100% { background: transparent } 50% { background: rgba(255,34,85,.04) } }
+@keyframes typeIn      { from { width: 0 } to { width: 100% } }
+@keyframes bootFade    { 0%,80% { opacity: 1 } 100% { opacity: 0 } }

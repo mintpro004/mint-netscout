@@ -1,0 +1,234 @@
+/* ── Button ──────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 7px;
+  font-family: var(--f-hud);
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all .18s var(--ease);
+  white-space: nowrap;
+}
+.btn:active  { transform: scale(.96); }
+.btn:disabled{ opacity: .45; cursor: not-allowed; pointer-events: none; }
+
+/* sizes */
+.btn-sm  { padding: 4px 10px;  font-size: 7.5px; letter-spacing: 1.5px; }
+.btn-md  { padding: 8px 16px;  font-size: 8.5px; }
+.btn-lg  { padding: 11px 22px; font-size: 9.5px; }
+
+/* variants */
+.btn-mint   { color: var(--mint);  border-color: var(--mint);  background: var(--mint-d); }
+.btn-mint:hover:not(:disabled)   { background: rgba(0,255,170,.2); box-shadow: 0 0 16px var(--mint-g); }
+.btn-red    { color: var(--red);   border-color: var(--red);   background: var(--red-d); }
+.btn-red:hover:not(:disabled)    { background: rgba(255,34,85,.2); }
+.btn-gold   { color: var(--gold);  border-color: var(--gold);  background: var(--gold-d); }
+.btn-gold:hover:not(:disabled)   { background: rgba(255,204,0,.2); }
+.btn-purple { color: var(--purple); border-color: rgba(157,80,255,.4); background: rgba(157,80,255,.08); }
+.btn-purple:hover:not(:disabled) { background: rgba(157,80,255,.2); }
+.btn-ghost  { color: var(--t2); border-color: var(--b1); background: transparent; }
+.btn-ghost:hover:not(:disabled)  { border-color: var(--b2); color: var(--t1); }
+
+/* ── Badge ───────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--f-hud);
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+.badge-trusted  { color: var(--mint); border-color: rgba(0,255,170,.3);  background: var(--mint-d); }
+.badge-warn     { color: var(--gold); border-color: rgba(255,204,0,.3);  background: var(--gold-d); }
+.badge-danger   { color: var(--red);  border-color: rgba(255,34,85,.3);  background: var(--red-d); }
+.badge-neutral  { color: var(--t2);   border-color: var(--b1);           background: transparent; }
+.badge-online   { color: var(--mint); border-color: rgba(0,255,170,.3);  background: var(--mint-d); }
+.badge-offline  { color: var(--t2);   border-color: var(--b1);           background: transparent; }
+
+/* ── Tag ─────────────────────────────────────────────────────────────────── */
+.tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--f-data);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+.tag-mint   { color: var(--mint);  border-color: rgba(0,255,170,.25); background: var(--mint-d); }
+.tag-red    { color: var(--red);   border-color: rgba(255,34,85,.25); background: var(--red-d); }
+.tag-gold   { color: var(--gold);  border-color: rgba(255,204,0,.25); background: var(--gold-d); }
+.tag-cyan   { color: var(--cyan);  border-color: rgba(0,212,255,.25); background: var(--cyan-d); }
+.tag-purple { color: var(--purple);border-color: rgba(157,80,255,.25);background: rgba(157,80,255,.08); }
+
+/* ── Panel ───────────────────────────────────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--b1);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: fadeUp .35s var(--ease2);
+  position: relative;
+}
+.panel::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--mint), transparent);
+  opacity: .2;
+}
+.pa-mint   { border-top: 2px solid var(--mint); }
+.pa-gold   { border-top: 2px solid var(--gold); }
+.pa-red    { border-top: 2px solid var(--red); }
+.pa-cyan   { border-top: 2px solid var(--cyan); }
+.pa-purple { border-top: 2px solid var(--purple); }
+
+.panelHdr {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--b1);
+  background: rgba(0,0,0,.25);
+}
+.panelTitle {
+  font-family: var(--f-hud);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--t0);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  flex: 1;
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(2,4,8,.85);
+  backdrop-filter: blur(8px);
+  z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn .2s var(--ease);
+}
+.modal {
+  max-height: 85vh;
+  background: var(--surface);
+  border: 1px solid var(--b2);
+  border-radius: 14px;
+  overflow-y: auto;
+  animation: fadeUp .28s var(--ease2);
+  box-shadow: 0 0 80px rgba(0,255,170,.08), 0 32px 80px rgba(0,0,0,.6);
+  position: relative;
+}
+.modal::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--mint), var(--cyan), transparent);
+  opacity: .6;
+  border-radius: 14px 14px 0 0;
+}
+.modalHdr {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px;
+  border-bottom: 1px solid var(--b1);
+  background: rgba(0,0,0,.3);
+  position: sticky; top: 0; z-index: 1;
+}
+.modalIcon  { font-size: 32px; }
+.modalTitle { font-family: var(--f-hud); font-size: 16px; font-weight: 800; color: var(--t0); }
+.modalSub   { font-family: var(--f-data); font-size: 10px; color: var(--t2); margin-top: 2px; }
+.modalClose {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--b1);
+  color: var(--t2);
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: grid; place-items: center;
+  transition: all .15s;
+}
+.modalClose:hover { border-color: var(--red); color: var(--red); }
+
+/* ── Input ───────────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  background: var(--raised);
+  border: 1px solid var(--b1);
+  border-radius: 7px;
+  padding: 8px 12px;
+  color: var(--t0);
+  font-family: var(--f-data);
+  font-size: 11.5px;
+  outline: none;
+  transition: border-color .15s;
+}
+.input:focus { border-color: var(--mint); box-shadow: 0 0 8px var(--mint-g); }
+
+/* ── Toggle ──────────────────────────────────────────────────────────────── */
+.toggle {
+  width: 40px; height: 22px;
+  background: var(--b1);
+  border: 1px solid var(--b2);
+  border-radius: 11px;
+  position: relative;
+  cursor: pointer;
+  transition: background .2s;
+  flex-shrink: 0;
+}
+.toggleOn { background: var(--mint-d); border-color: var(--mint); }
+.toggle::after {
+  content: '';
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--t2);
+  transition: all .2s var(--ease);
+}
+.toggleOn::after { left: calc(100% - 18px); background: var(--mint); box-shadow: 0 0 6px var(--mint-g); }
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.toastWrap {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 9000;
+  display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  padding: 10px 16px;
+  background: var(--raised);
+  border: 1px solid var(--b2);
+  border-radius: 8px;
+  font-family: var(--f-data);
+  font-size: 10px;
+  color: var(--t0);
+  letter-spacing: .5px;
+  animation: slideRight .3s var(--ease2);
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  pointer-events: all;
+  cursor: pointer;
+}
+.toast-success { border-color: rgba(0,255,170,.4);  color: var(--mint); }
+.toast-error   { border-color: rgba(255,34,85,.4);  color: var(--red); }
+.toast-info    { border-color: rgba(0,212,255,.4);  color: var(--cyan); }
+
+/* ── Status dot ──────────────────────────────────────────────────────────── */
+.sdot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.sdotUp   { background: var(--mint); box-shadow: 0 0 6px var(--mint-g); animation: pulse 2s infinite; }
+.sdotDown { background: var(--t3); }
+
+/* ── Port chip ───────────────────────────────────────────────────────────── */
+.pchip {
+  padding: 2px 6px;
+  background: rgba(0,80,120,.25);
+  border: 1px solid rgba(0,212,255,.2);
+  border-radius: 3px;
+  font-family: var(--f-data);
+  font-size: 8.5px;
+  color: var(--cyan);
+}
+.pchipHot { background: rgba(255,34,85,.1); border-color: rgba(255,34,85,.3); color: var(--red); }

@@ -1,0 +1,76 @@
+.body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.detail {
+  background: var(--raised);
+  border: 1px solid var(--b1);
+  border-radius: 7px;
+  padding: 10px 12px;
+}
+.detailLbl {
+  font-family: var(--f-hud);
+  font-size: 7.5px;
+  color: var(--t3);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.detailVal {
+  font-family: var(--f-data);
+  font-size: 11px;
+  color: var(--t0);
+  word-break: break-all;
+}
+.portRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.investResult {
+  background: var(--abyss);
+  border: 1px solid var(--b1);
+  border-radius: 8px;
+  padding: 12px;
+}
+.investTitle {
+  font-family: var(--f-hud);
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--t3);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.riskBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-family: var(--f-hud);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border: 1px solid;
+  margin-bottom: 8px;
+}
+.investSub {
+  font-family: var(--f-data);
+  font-size: 9px;
+  color: var(--t2);
+  margin-top: 4px;
+}

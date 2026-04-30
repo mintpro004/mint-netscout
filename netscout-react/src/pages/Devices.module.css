@@ -1,0 +1,58 @@
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--b1);
+}
+.filterBtn {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--b1);
+  background: none;
+  color: var(--t2);
+  font-family: var(--f-hud);
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all .15s;
+}
+.filterBtn:hover { border-color: var(--b2); color: var(--t1); }
+.filterOn  { border-color: var(--mint) !important; color: var(--mint) !important; background: var(--mint-d) !important; }
+.filterHidden.filterOn { border-color: var(--purple) !important; color: var(--purple) !important; background: rgba(157,80,255,.1) !important; }
+
+.tableWrap { overflow-y: auto; flex: 1; }
+
+.tbl { width: 100%; border-collapse: collapse; }
+.tbl th {
+  padding: 8px 11px;
+  text-align: left;
+  font-family: var(--f-hud);
+  font-size: 7.5px;
+  color: var(--t3);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--b1);
+  white-space: nowrap;
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.tbl td { padding: 10px 11px; border-bottom: 1px solid rgba(0,255,170,.04); vertical-align: middle; }
+.tbl tr { cursor: pointer; transition: background .12s; }
+.tbl tr:hover td { background: var(--raised); }
+.tbl tr.sel td   { background: var(--mint-d); }
+
+.devName   { font-family: var(--f-body); font-size: 12.5px; font-weight: 700; color: var(--t0); }
+.devVendor { font-family: var(--f-data); font-size: 9.5px; color: var(--t2); }
+.mono      { font-family: var(--f-data); font-size: 11px; color: var(--t1); }
+.xs        { font-family: var(--f-data); font-size: 9px; color: var(--t2); }
+
+.actions { white-space: nowrap; display: flex; gap: 4px; padding: 10px 6px !important; }
+
+.empty {
+  text-align: center; padding: 40px;
+  color: var(--t3); font-family: var(--f-data); font-size: 11px;
+  border: 1px dashed var(--b1); border-radius: 8px; margin: 20px; letter-spacing: 1px;
+}
