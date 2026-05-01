@@ -126,7 +126,8 @@ def get_local_network() -> list[dict]:
     import netifaces
 
     networks = []
-    ignored_prefixes = ("lo", "docker", "virbr", "veth", "br-")
+    # Relaxed filtering: allow bridges (br-) as they are common on many setups
+    ignored_prefixes = ("lo", "docker", "virbr", "veth")
 
     for iface in netifaces.interfaces():
         if any(iface.startswith(p) for p in ignored_prefixes):
@@ -163,9 +164,12 @@ def get_local_network() -> list[dict]:
                     "prefix_len": network.prefixlen,
                     "host_count": network.num_addresses - 2,
                 })
-                logger.info(f"Found network: {network} on {iface}")
-            except ValueError as e:
+                logger.info(f"📡 Detected network: {network} on {iface} (Gateway: {gateway})")
+            except Exception as e:
                 logger.debug(f"Skipping {iface}: {e}")
+
+    if not networks:
+        logger.warning("No active network interfaces detected!")
 
     return networks
 

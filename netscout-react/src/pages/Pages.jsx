@@ -128,7 +128,19 @@ export function Network({ status }) {
                 ].map(([k, v]) => (
                   <div key={k} className={styles.netRow}>
                     <span className={styles.netKey}>{k}</span>
-                    <span className={styles.netVal}>{v}</span>
+                    <span className={styles.netVal}>
+                      {v}
+                      {k === 'Gateway' && v !== '—' && (
+                        <a 
+                          href={`http://${v}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          style={{ marginLeft: 10, fontSize: '0.8em', color: '#00ffaa', textDecoration: 'underline' }}
+                        >
+                          [OPEN ADMIN]
+                        </a>
+                      )}
+                    </span>
                   </div>
                 ))}
               </div>
