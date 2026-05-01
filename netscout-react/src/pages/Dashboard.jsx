@@ -7,6 +7,7 @@ import styles from './Dashboard.module.css'
 /* ── Radar ───────────────────────────────────────────────────────────────── */
 function Radar({ devices, scanning, onSelect }) {
   const online = devices.filter(d => d.is_online)
+
   const dots = useMemo(() =>
     online.slice(0, 20).map((d, i) => {
       const angle = (i / Math.max(online.length, 1)) * Math.PI * 2 - Math.PI / 2 + (i % 4) * 0.22
@@ -31,14 +32,18 @@ function Radar({ devices, scanning, onSelect }) {
             className={styles.dot}
             style={{ left: `${x}%`, top: `${y}%` }}
             title={d.alias || d.hostname || d.ip}
-            onClick={() => onSelect(d.mac)}
+            onClick={() => onSelect(d.mac || d.ip)}  // FIX: pass MAC string, not object
           />
         ))}
       </div>
 
       <div className={styles.radarList}>
         {online.slice(0, 9).map(d => (
-          <div key={d.mac || d.ip} className={styles.radarRow} onClick={() => onSelect(d.mac)}>
+          <div
+            key={d.mac || d.ip}
+            className={styles.radarRow}
+            onClick={() => onSelect(d.mac || d.ip)}  // FIX: pass MAC string
+          >
             <span className={styles.radarIcon}>{deviceIcon(d)}</span>
             <div className={styles.radarInfo}>
               <div className={styles.radarName}>{d.alias || d.hostname || d.ip}</div>
@@ -59,25 +64,51 @@ function Radar({ devices, scanning, onSelect }) {
 function ChartTip({ active, payload }) {
   if (!active || !payload?.length) return null
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--b2)', borderRadius: 6, padding: '5px 10px', fontFamily: 'var(--f-data)', fontSize: 10, color: 'var(--mint)' }}>
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--b2)',
+      borderRadius: 6, padding: '5px 10px',
+      fontFamily: 'var(--f-data)', fontSize: 10, color: 'var(--mint)'
+    }}>
       {(payload[0].value || 0).toFixed(1)} ms
     </div>
   )
 }
 
 /* ── Dashboard ───────────────────────────────────────────────────────────── */
-export default function Dashboard({ visible, online, trusted, unsafe, alerts, status, scanning, hiddenMacs, onSelectDevice, onAck }) {
+export default function Dashboard({
+  visible, online, trusted, unsafe, alerts, status,
+  scanning, hiddenMacs, onSelectDevice, onAck
+}) {
   const latData = useMemo(() =>
-    online.filter(d => d.latency_ms > 0).slice(0, 40).map((d, i) => ({ t: i, ms: d.latency_ms }))
+    online
+      .filter(d => d.latency_ms > 0)
+      .slice(0, 40)
+      .map((d, i) => ({ t: i, ms: d.latency_ms }))
   , [online])
 
   const unacked = alerts.filter(a => !a.acked)
 
   const kpis = [
-    { icon: '🔌', val: visible.length,  lbl: 'Total Assets',   sub: `${online.length} online`,           kc: 'var(--mint)' },
-    { icon: '📶', val: online.filter(d => !hiddenMacs.has(d.mac)).length, lbl: 'Live Devices', sub: `${visible.length - online.length} offline`, kc: 'var(--cyan)' },
-    { icon: '☣',  val: unsafe.length,   lbl: 'Threats',        sub: 'active detections',                  kc: 'var(--red)'  },
-    { icon: '🛡',  val: trusted.filter(d => !hiddenMacs.has(d.mac)).length, lbl: 'Trusted',   sub: `${visible.length - trusted.length} unverified`, kc: 'var(--gold)' },
+    {
+      icon: '🔌', lbl: 'Total Assets', kc: 'var(--mint)',
+      val: visible.length,
+      sub: `${online.filter(d => !hiddenMacs.has(d.mac)).length} online`,
+    },
+    {
+      icon: '📶', lbl: 'Live Devices', kc: 'var(--cyan)',
+      val: online.filter(d => !hiddenMacs.has(d.mac)).length,
+      sub: `${visible.length - online.filter(d => !hiddenMacs.has(d.mac)).length} offline`,
+    },
+    {
+      icon: '☣',  lbl: 'Threats', kc: 'var(--red)',
+      val: unsafe.length,
+      sub: 'active detections',
+    },
+    {
+      icon: '🛡',  lbl: 'Trusted', kc: 'var(--gold)',
+      val: trusted.filter(d => !hiddenMacs.has(d.mac)).length,
+      sub: `${visible.length - trusted.filter(d => !hiddenMacs.has(d.mac)).length} unverified`,
+    },
   ]
 
   return (
@@ -94,7 +125,7 @@ export default function Dashboard({ visible, online, trusted, unsafe, alerts, st
         ))}
       </div>
 
-      {/* Radar + Alerts */}
+      {/* Radar + Alert feed */}
       <div className={styles.row73}>
         <Panel accent="mint">
           <PanelHeader title="Network Topology">
@@ -110,14 +141,16 @@ export default function Dashboard({ visible, online, trusted, unsafe, alerts, st
             {unacked.length > 0 && <Tag variant="red">{unacked.length} NEW</Tag>}
           </PanelHeader>
           <div className={styles.alertList}>
-            {alerts.slice(0, 7).map((a, i) => {
+            {alerts.slice(0, 7).map(a => {
               const col = SEV_COLOR[a.severity] || '#00ffaa'
               return (
-                <div key={i} className={`${styles.alertItem} ${a.acked ? styles.acked : ''}`}>
+                <div key={a._id} className={`${styles.alertItem} ${a.acked ? styles.acked : ''}`}>
                   <div className={styles.alertBar} style={{ background: col }} />
                   <div className={styles.alertBody}>
                     <div className={styles.alertMsg}>{a.message}</div>
-                    <div className={styles.alertMeta}>{fmtAgo(a.timestamp)} · {a.device_ip || '—'}</div>
+                    <div className={styles.alertMeta}>
+                      {fmtAgo(a.timestamp)} · {a.device_ip || '—'}
+                    </div>
                   </div>
                   {!a.acked && (
                     <button className={styles.ackBtn} onClick={() => onAck(a)}>ACK</button>
@@ -125,7 +158,9 @@ export default function Dashboard({ visible, online, trusted, unsafe, alerts, st
                 </div>
               )
             })}
-            {alerts.length === 0 && <div className={styles.empty}>NO ALERTS DETECTED</div>}
+            {alerts.length === 0 && (
+              <div className={styles.empty}>NO ALERTS DETECTED</div>
+            )}
           </div>
         </Panel>
       </div>
@@ -136,11 +171,11 @@ export default function Dashboard({ visible, online, trusted, unsafe, alerts, st
           <PanelHeader title="System Intelligence" />
           <div className={styles.panelBody}>
             {[
-              ['Version',      status?.version || '2.1.0 PRO'],
-              ['Networks',     (status?.networks || []).map(n => n.subnet).join(', ') || '—'],
-              ['Permissions',  status?.permissions?.has_raw_socket ? '✓ CAP_NET_RAW' : '⚠ ICMP Only'],
-              ['Developer',    status?.developer || 'mintprojects'],
-              ['Hidden Assets',hiddenMacs.size > 0 ? `${hiddenMacs.size} hidden` : 'None'],
+              ['Version',       status?.version || '2.1.0 PRO'],
+              ['Networks',      (status?.networks || []).map(n => n.subnet).join(', ') || '—'],
+              ['Permissions',   status?.permissions?.has_raw_socket ? '✓ CAP_NET_RAW' : '⚠ ICMP Only'],
+              ['Developer',     status?.developer || 'mintprojects'],
+              ['Hidden Assets', hiddenMacs.size > 0 ? `${hiddenMacs.size} hidden` : 'None'],
             ].map(([l, v]) => (
               <div key={l} className={styles.infoRow}>
                 <span className={styles.infoLbl}>{l}</span>
@@ -165,11 +200,18 @@ export default function Dashboard({ visible, online, trusted, unsafe, alerts, st
                   <XAxis dataKey="t" hide />
                   <YAxis tick={{ fontSize: 8.5, fill: '#283848' }} width={28} />
                   <Tooltip content={<ChartTip />} />
-                  <Area type="monotone" dataKey="ms" stroke="#00d4ff" strokeWidth={1.5} fill="url(#lg)" dot={false} isAnimationActive={false} />
+                  <Area
+                    type="monotone" dataKey="ms"
+                    stroke="#00d4ff" strokeWidth={1.5}
+                    fill="url(#lg)" dot={false}
+                    isAnimationActive={false}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className={styles.empty} style={{ fontSize: 9 }}>NO LATENCY DATA — RUN A SCAN</div>
+              <div className={styles.empty} style={{ fontSize: 9 }}>
+                NO LATENCY DATA — RUN A SCAN
+              </div>
             )}
           </div>
         </Panel>

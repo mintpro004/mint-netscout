@@ -17,10 +17,10 @@ export default function DeviceModal({ mac, devices, onClose, onInvestigate, onBl
     [devices, mac]
   )
 
-  const ports    = useMemo(() => dev ? parsePorts(dev.open_ports) : [], [dev])
+  const ports    = useMemo(() => parsePorts(dev?.open_ports || '[]'), [dev?.open_ports])
+  const isBlocked = !dev?.is_trusted
 
   if (!dev) return null
-  const isBlocked = !dev.is_trusted
 
   const handleInvestigate = async () => {
     setInvesting(true)
@@ -43,7 +43,7 @@ export default function DeviceModal({ mac, devices, onClose, onInvestigate, onBl
     else setRemoving(false)
   }
 
-  const rl = investResult?.risk?.overall || 'none'
+  const rl = investResult?.risk?.level || 'none'
   const rc = RISK_COLOR[rl] || '#00ffaa'
 
   return (

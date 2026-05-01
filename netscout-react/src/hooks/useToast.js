@@ -17,18 +17,19 @@ export function useToasts() {
   const timers = useRef(new Map())
 
   useEffect(() => {
+    const activeTimers = timers.current
     const handler = ({ id, msg, type, duration }) => {
       setToasts(p => [...p, { id, msg, type }])
       const t = setTimeout(() => {
         setToasts(p => p.filter(x => x.id !== id))
-        timers.current.delete(id)
+        activeTimers.delete(id)
       }, duration)
-      timers.current.set(id, t)
+      activeTimers.set(id, t)
     }
     listeners.add(handler)
     return () => {
       listeners.delete(handler)
-      timers.current.forEach(clearTimeout)
+      activeTimers.forEach(clearTimeout)
     }
   }, [])
 

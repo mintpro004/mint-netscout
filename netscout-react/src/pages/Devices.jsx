@@ -17,20 +17,22 @@ export default function Devices({ visible, hidden, hiddenMacs, onSelect, onRemov
   const [filter, setFilter] = useState('all')
 
   const pool = filter === 'hidden' ? hidden : visible
-  const q = search.toLowerCase()
+  const q = search.toLowerCase().trim()
 
   const filtered = useMemo(() => pool.filter(d => {
     const matchQ = !q
-      || (d.ip || '').includes(q)
-      || (d.mac || '').toLowerCase().includes(q)
+      || (d.ip       || '').includes(q)
+      || (d.mac      || '').toLowerCase().includes(q)
       || (d.hostname || '').toLowerCase().includes(q)
-      || (d.vendor || '').toLowerCase().includes(q)
-      || (d.alias || '').toLowerCase().includes(q)
-    const matchF = filter === 'all' || filter === 'hidden'
-      || (filter === 'online'      && d.is_online)
-      || (filter === 'offline'     && !d.is_online)
-      || (filter === 'trusted'     && d.is_trusted)
-      || (filter === 'unverified'  && !d.is_trusted)
+      || (d.vendor   || '').toLowerCase().includes(q)
+      || (d.alias    || '').toLowerCase().includes(q)
+    const matchF =
+      filter === 'all'        ||
+      filter === 'hidden'     ||
+      (filter === 'online'     && d.is_online)   ||
+      (filter === 'offline'    && !d.is_online)  ||
+      (filter === 'trusted'    && d.is_trusted)  ||
+      (filter === 'unverified' && !d.is_trusted)
     return matchQ && matchF
   }), [pool, q, filter])
 
@@ -43,7 +45,6 @@ export default function Devices({ visible, hidden, hiddenMacs, onSelect, onRemov
         )}
       </PanelHeader>
 
-      {/* Filters */}
       <div className={styles.filterBar}>
         <Input
           placeholder="Search IP, MAC, hostname, alias…"
@@ -62,12 +63,11 @@ export default function Devices({ visible, hidden, hiddenMacs, onSelect, onRemov
         ))}
       </div>
 
-      {/* Table */}
       <div className={styles.tableWrap}>
         <table className={styles.tbl}>
           <thead>
             <tr>
-              {['', 'Asset', 'IP Address', 'MAC', 'Trust', 'Status', 'Last Seen', ''].map(h => (
+              {['', 'Asset', 'IP', 'MAC', 'Trust', 'Status', 'Last Seen', 'Actions'].map(h => (
                 <th key={h}>{h}</th>
               ))}
             </tr>
@@ -76,7 +76,11 @@ export default function Devices({ visible, hidden, hiddenMacs, onSelect, onRemov
             {filtered.map(d => {
               const isHidden = hiddenMacs.has(d.mac)
               return (
-                <tr key={d.mac || d.ip} onClick={() => onSelect(d.mac)} style={isHidden ? { opacity: .4 } : {}}>
+                <tr
+                  key={d.mac || d.ip}
+                  onClick={() => onSelect(d.mac || d.ip)}  // FIX: pass MAC string
+                  style={isHidden ? { opacity: .4 } : {}}
+                >
                   <td><span style={{ fontSize: 18 }}>{deviceIcon(d)}</span></td>
                   <td>
                     <div className={styles.devName}>{d.alias || d.hostname || d.ip || 'UNKNOWN'}</div>
@@ -97,12 +101,20 @@ export default function Devices({ visible, hidden, hiddenMacs, onSelect, onRemov
                   >
                     <Btn
                       variant="red" size="sm"
-                      onClick={() => { if (confirm('Remove device?')) onRemove(d.mac) }}
-                    >🗑</Btn>
+                      onClick={() => {
+                        if (confirm(`Remove ${d.alias || d.hostname || d.ip}?`)) {
+                          onRemove(d.mac)
+                        }
+                      }}
+                    >
+                      🗑
+                    </Btn>
                     <Btn
                       variant="purple" size="sm"
                       onClick={() => onHide(d.mac)}
-                    >{isHidden ? 'Show' : 'Hide'}</Btn>
+                    >
+                      {isHidden ? 'Show' : 'Hide'}
+                    </Btn>
                   </td>
                 </tr>
               )

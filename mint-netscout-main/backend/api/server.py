@@ -18,7 +18,6 @@ import threading
 import webbrowser
 import time
 from pathlib import Path
-from typing import Optional
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
@@ -49,8 +48,11 @@ socketio = SocketIO(
     app, 
     cors_allowed_origins="*", 
     async_mode="eventlet",
-    ping_timeout=10,
-    ping_interval=5
+    ping_timeout=60,
+    ping_interval=25,
+    max_http_buffer_size=1048576,
+    logger=False,
+    engineio_logger=False
 )
 
 # Shared instances
@@ -244,6 +246,7 @@ def investigate_device(mac):
         results = PortScanner().scan_device(device.ip, mode="full")
         
         # FIX BE-03: properly serialize port list to JSON string before assigning to ORM field
+        import json
         port_dicts = [p.to_dict() for p in results]
         device.open_ports = json.dumps(port_dicts)
         db.commit()

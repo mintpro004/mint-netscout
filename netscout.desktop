@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=NetScout SIGINT PRO
+Comment=Professional Real-time Network Intelligence & Security Auditing
+Exec=/home/mint/mint-netscout-react-v2/launch-gui.sh
+Icon=/home/mint/mint-netscout-react-v2/netscout-react/public/favicon.svg
+Terminal=false
+Type=Application
+Categories=Network;Security;System;
+Keywords=network;scan;security;intelligence;
+StartupNotify=true

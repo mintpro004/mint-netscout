@@ -105,9 +105,40 @@ log "Setting network capabilities on venv binary..."
 REAL_PY="$(readlink -f $DIR/.venv/bin/python3)"
 setcap cap_net_raw,cap_net_admin+eip "$REAL_PY" || log "Note: Could not set capabilities (Normal for some Chromebook/Container envs)."
 
+# 8. GUI Setup (Electron)
+log "Configuring Standalone GUI (Electron)..."
+if command -v npm >/dev/null 2>&1; then
+    cd "$DIR/../netscout-react"
+    if [ -n "$SUDO_USER" ]; then
+        sudo -u "$SUDO_USER" npm install --quiet
+    else
+        npm install --quiet
+    fi
+    cd "$DIR"
+else
+    log "Warning: npm not found. GUI app setup skipped. Please install Node.js/npm manually."
+fi
+
+# 9. Register Desktop Entry
+log "Registering Desktop Entry..."
+DESKTOP_DIR="/home/$SUDO_USER/.local/share/applications"
+[ -z "$SUDO_USER" ] && DESKTOP_DIR="$HOME/.local/share/applications"
+mkdir -p "$DESKTOP_DIR"
+
+# Update paths in .desktop file to absolute paths
+sed -i "s|Exec=.*|Exec=$DIR/../launch-gui.sh|" "$DIR/../netscout.desktop"
+sed -i "s|Icon=.*|Icon=$DIR/../netscout-react/public/favicon.svg|" "$DIR/../netscout.desktop"
+
+cp "$DIR/../netscout.desktop" "$DESKTOP_DIR/"
+if [ -n "$SUDO_USER" ]; then
+    chown "$SUDO_USER":"$SUDO_USER" "$DESKTOP_DIR/netscout.desktop"
+fi
+chmod +x "$DIR/../launch-gui.sh"
+
 echo -e "\n${GREEN}============================================================${NC}"
 success "MINT NETSCOUT INSTALLATION COMPLETE"
 echo -e "${GREEN}============================================================${NC}"
-echo -e "\n[+] LAUNCH COMMAND: ${BLUE}./netscout.sh${NC}"
-echo -e "[+] DASHBOARD:      ${BLUE}http://localhost:5000${NC}"
+echo -e "\n[+] GUI LAUNCHER:   ${BLUE}$DIR/../launch-gui.sh${NC}"
+echo -e "[+] CLI LAUNCHER:   ${BLUE}./netscout.sh${NC}"
+echo -e "[+] DESKTOP APP:    Available in your Application Menu"
 echo -e "\n${GREEN}============================================================${NC}\n"

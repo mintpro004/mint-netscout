@@ -13,55 +13,73 @@ export function Threats({ unsafe, onSelectDevice, onBlock }) {
         {unsafe.length === 0 && (
           <div className={styles.empty}>NO MALICIOUS ACTIVITY DETECTED</div>
         )}
-        {unsafe.map((u, i) => (
-          <div key={i} className={styles.threatRow}>
-            <div className={styles.threatIcon}>⚠️</div>
-            <div className={styles.threatInfo}>
-              <div className={styles.threatName}>THREAT: {u.threat}</div>
-              <div className={styles.threatSub}>
-                Source: {u.device?.ip || '—'} [{u.device?.hostname || 'UNKNOWN'}]
+        {unsafe.map((u, i) => {
+          // FIX: guard against missing device
+          const devMac = u.device?.mac
+          const devIp  = u.device?.ip   || '—'
+          const devHost = u.device?.hostname || 'UNKNOWN'
+          return (
+            <div key={i} className={styles.threatRow}>
+              <div className={styles.threatIcon}>⚠️</div>
+              <div className={styles.threatInfo}>
+                <div className={styles.threatName}>THREAT: {u.threat}</div>
+                <div className={styles.threatSub}>
+                  Source: {devIp} [{devHost}]
+                </div>
+                <div className={styles.threatActions}>
+                  <Btn
+                    variant="mint" size="sm"
+                    onClick={() => devMac && onSelectDevice(devMac)}
+                    disabled={!devMac}
+                  >
+                    🔍 INVESTIGATE
+                  </Btn>
+                  <Btn
+                    variant="red" size="sm"
+                    onClick={() => devMac && onBlock(devMac, true)}
+                    disabled={!devMac}
+                  >
+                    🚫 BLOCK
+                  </Btn>
+                </div>
               </div>
-              <div className={styles.threatActions}>
-                <Btn variant="mint" size="sm" onClick={() => u.device && onSelectDevice(u.device.mac)}>
-                  🔍 INVESTIGATE
-                </Btn>
-                <Btn variant="red" size="sm" onClick={() => u.device && onBlock(u.device.mac, true)}>
-                  🚫 BLOCK
-                </Btn>
-              </div>
+              <div className={styles.xs}>{fmtTime(u.at)}</div>
             </div>
-            <div className={styles.xs}>{fmtTime(u.at)}</div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </Panel>
   )
 }
 
 /* ── Alerts ──────────────────────────────────────────────────────────────── */
-export function Alerts({ alerts, onAck }) {
+// FIX: accept onAckAll prop and use _id-based keying
+export function Alerts({ alerts, onAck, onAckAll }) {
   const unacked = alerts.filter(a => !a.acked)
   return (
     <Panel accent="red">
       <PanelHeader title="Alert Log">
         {unacked.length > 0 && <Tag variant="red">{unacked.length} UNACKNOWLEDGED</Tag>}
         {alerts.length > 0 && (
-          <Btn variant="mint" size="sm" onClick={() => unacked.forEach(onAck)}>
+          <Btn variant="mint" size="sm" onClick={onAckAll}>
             ACK ALL
           </Btn>
         )}
       </PanelHeader>
       <div className={styles.body}>
         {alerts.length === 0 && <div className={styles.empty}>NO ALERTS RECORDED</div>}
-        {alerts.map((a, i) => {
+        {alerts.map(a => {
           const col = SEV_COLOR[a.severity] || '#00ffaa'
           return (
-            <div key={i} className={`${styles.alertItem} ${a.acked ? styles.acked : ''}`}>
+            <div key={a._id} className={`${styles.alertItem} ${a.acked ? styles.acked : ''}`}>
               <div className={styles.alertBar} style={{ background: col }} />
               <div className={styles.alertBody}>
                 <div className={styles.alertMsg}>{a.message}</div>
                 <div className={styles.alertMeta}>
-                  <Badge variant={a.severity === 'critical' ? 'danger' : a.severity === 'info' ? 'trusted' : 'warn'}>
+                  <Badge variant={
+                    a.severity === 'critical' ? 'danger' :
+                    a.severity === 'info'     ? 'trusted' : 'warn'
+                  }>
                     {(a.severity || 'info').toUpperCase()}
                   </Badge>
                   {'  '}{fmtTime(a.timestamp)} · {a.device_ip || 'SYSTEM'}
@@ -91,7 +109,9 @@ export function Network({ status }) {
               <div className={styles.detailLbl}>Scan Permissions</div>
               <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <Badge variant={status.permissions?.has_raw_socket ? 'trusted' : 'warn'}>
-                  {status.permissions?.has_raw_socket ? '✓ CAP_NET_RAW ACTIVE' : '⚠ LIMITED — ICMP ONLY'}
+                  {status.permissions?.has_raw_socket
+                    ? '✓ CAP_NET_RAW ACTIVE'
+                    : '⚠ LIMITED — ICMP ONLY'}
                 </Badge>
                 {status.permissions?.message && (
                   <div className={styles.xs}>{status.permissions.message}</div>
@@ -101,7 +121,11 @@ export function Network({ status }) {
             {(status.networks || []).map((n, i) => (
               <div key={i} className={styles.detailRow}>
                 <div className={styles.detailLbl}>Interface: {n.interface}</div>
-                {[['Subnet', n.subnet], ['Local IP', n.ip || '—'], ['Gateway', n.gateway || '—']].map(([k, v]) => (
+                {[
+                  ['Subnet',   n.subnet],
+                  ['Local IP', n.ip      || '—'],
+                  ['Gateway',  n.gateway || '—'],
+                ].map(([k, v]) => (
                   <div key={k} className={styles.netRow}>
                     <span className={styles.netKey}>{k}</span>
                     <span className={styles.netVal}>{v}</span>
@@ -117,7 +141,10 @@ export function Network({ status }) {
 }
 
 /* ── Settings ────────────────────────────────────────────────────────────── */
-export function Settings({ settings, setSettings, hiddenMacs, onClearHidden, onCheckUpdates, onExit, updLoading, connected, devices }) {
+export function Settings({
+  settings, setSettings, hiddenMacs, onClearHidden,
+  onCheckUpdates, onExit, updLoading, connected, devices
+}) {
   return (
     <div className={styles.settingsGrid}>
       <Panel accent="mint" style={{ alignSelf: 'start' }}>
@@ -158,9 +185,13 @@ export function Settings({ settings, setSettings, hiddenMacs, onClearHidden, onC
           <div className={styles.settingRow}>
             <div>
               <div className={styles.settingLabel}>Hidden Devices</div>
-              <div className={styles.settingSubLabel}>{hiddenMacs.size} device(s) hidden</div>
+              <div className={styles.settingSubLabel}>{hiddenMacs.size} device(s) hidden from view</div>
             </div>
-            <Btn variant="purple" size="sm" onClick={onClearHidden} disabled={hiddenMacs.size === 0}>
+            <Btn
+              variant="purple" size="sm"
+              onClick={onClearHidden}
+              disabled={hiddenMacs.size === 0}
+            >
               REVEAL ALL
             </Btn>
           </div>
@@ -176,8 +207,8 @@ export function Settings({ settings, setSettings, hiddenMacs, onClearHidden, onC
             ['Engine',     'Flask + SocketIO'],
             ['Database',   'SQLite ORM'],
             ['Protocol',   'ICMP + ARP + mDNS'],
-            ['Connected',  connected ? 'WebSocket LIVE' : 'Polling fallback'],
-            ['Total Seen', `${devices.length} devices`],
+            ['Connection', connected ? '🟢 WebSocket LIVE' : '🔴 Polling fallback'],
+            ['Devices Known', `${devices.length}`],
           ].map(([l, v]) => (
             <div key={l} className={styles.infoRow}>
               <span className={styles.infoLbl}>{l}</span>
@@ -185,7 +216,12 @@ export function Settings({ settings, setSettings, hiddenMacs, onClearHidden, onC
             </div>
           ))}
           <div className={styles.settingsBtns}>
-            <Btn variant="gold" onClick={onCheckUpdates} disabled={updLoading} style={{ flex: 1 }}>
+            <Btn
+              variant="gold"
+              onClick={onCheckUpdates}
+              disabled={updLoading}
+              style={{ flex: 1 }}
+            >
               {updLoading ? '⏳ CHECKING…' : '⟳ CHECK UPDATES'}
             </Btn>
             <Btn variant="red" onClick={onExit} style={{ flex: 1 }}>
