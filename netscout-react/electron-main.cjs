@@ -1,6 +1,12 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('path')
 
+// Disable GPU and Sandbox for maximum compatibility on Linux/Crostini
+app.commandLine.appendSwitch('disable-gpu')
+app.commandLine.appendSwitch('no-sandbox')
+app.commandLine.appendSwitch('disable-software-rasterizer')
+app.commandLine.appendSwitch('disable-dev-shm-usage')
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1280,

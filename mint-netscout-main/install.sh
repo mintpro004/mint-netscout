@@ -117,7 +117,9 @@ log "Generating self-healing launcher (netscout.sh)..."
 cat <<EOF > netscout.sh
 #!/bin/bash
 # Mint NetScout Smart Launcher
-DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+# Resolve real path in case of symlinks
+SCRIPT_PATH="\$(readlink -f "\${BASH_SOURCE[0]}")"
+DIR="\$( cd "\$( dirname "\$SCRIPT_PATH" )" >/dev/null 2>&1 && pwd )"
 cd "\$DIR"
 
 # 1. Port Self-Healing
