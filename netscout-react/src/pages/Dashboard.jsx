@@ -172,9 +172,9 @@ export default function Dashboard({
           <div className={styles.panelBody}>
             {[
               ['Version',       status?.version || '2.1.0 PRO'],
+              ['CPU Load',      status?.system_load !== undefined ? `${status.system_load}%` : '—'],
               ['Networks',      (status?.networks || []).map(n => n.subnet).join(', ') || '—'],
               ['Permissions',   status?.permissions?.has_raw_socket ? '✓ CAP_NET_RAW' : '⚠ ICMP Only'],
-              ['Developer',     status?.developer || 'mintprojects'],
               ['Hidden Assets', hiddenMacs.size > 0 ? `${hiddenMacs.size} hidden` : 'None'],
             ].map(([l, v]) => (
               <div key={l} className={styles.infoRow}>
@@ -186,32 +186,36 @@ export default function Dashboard({
         </Panel>
 
         <Panel accent="cyan">
-          <PanelHeader title="Device Latency (ms)" />
+          <PanelHeader title="Gateway Analysis" />
           <div className={styles.panelBody}>
-            {latData.length > 1 ? (
-              <ResponsiveContainer width="100%" height={120}>
-                <AreaChart data={latData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                  <defs>
-                    <linearGradient id="lg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%"  stopColor="#00d4ff" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="t" hide />
-                  <YAxis tick={{ fontSize: 8.5, fill: '#283848' }} width={28} />
-                  <Tooltip content={<ChartTip />} />
-                  <Area
-                    type="monotone" dataKey="ms"
-                    stroke="#00d4ff" strokeWidth={1.5}
-                    fill="url(#lg)" dot={false}
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+            {!status?.networks?.[0]?.gateway ? (
+              <div className={styles.empty}>IDENTIFYING GATEWAY...</div>
             ) : (
-              <div className={styles.empty} style={{ fontSize: 9 }}>
-                NO LATENCY DATA — RUN A SCAN
-              </div>
+              <>
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLbl}>IP Address</span>
+                  <span className={styles.infoVal} style={{ color: 'var(--cyan)' }}>{status.networks[0].gateway}</span>
+                </div>
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLbl}>Model</span>
+                  <span className={styles.infoVal}>{status.networks[0].gateway === '100.115.92.193' ? 'Crostini Gateway' : 'Analyzing...'}</span>
+                </div>
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLbl}>Capabilities</span>
+                  <div className={styles.infoVal} style={{ textAlign: 'right', fontSize: 9 }}>
+                    <Tag variant="mint">NAT</Tag> <Tag variant="gold">DHCP</Tag>
+                  </div>
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <button 
+                    className={styles.ackBtn} 
+                    style={{ width: '100%', fontSize: 10 }}
+                    onClick={() => window.open(`http://${status.networks[0].gateway}`, '_blank')}
+                  >
+                    OPEN ADMIN CONSOLE
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </Panel>

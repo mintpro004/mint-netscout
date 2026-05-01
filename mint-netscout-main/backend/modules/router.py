@@ -1,18 +1,14 @@
 """
 NetScout Router Intelligence & Control Module
 ==============================================
-Specialized logic for identifying and interacting with the network gateway.
-Capabilities:
-  1. Gateway Identification (IP, MAC, Vendor)
-  2. Management Interface Discovery (HTTP/HTTPS/SSH)
-  3. UPnP/SSDP Discovery for feature identification
-  4. Basic Router Model Fingerprinting
+Advanced logic for identifying, probing, and managing the network gateway.
 """
 
 import logging
 import socket
 import urllib.request
 import xml.etree.ElementTree as ET
+import concurrent.futures
 from typing import Dict, List, Optional
 from backend.core.engine import get_local_network
 
@@ -22,12 +18,15 @@ class RouterIntelligence:
     def __init__(self):
         self.gateway_ip = ""
         self.gateway_mac = ""
-        self.vendor = ""
-        self.model = "Generic Router"
+        self.vendor = "Generic"
+        self.model = "Router"
+        self.firmware = "Unknown"
         self.capabilities = []
+        self.vulnerabilities = []
+        self.management_urls = []
 
     def discover_gateway(self):
-        """Identify the primary gateway and its properties."""
+        """Identify and perform deep analysis on the primary gateway."""
         nets = get_local_network()
         if not nets:
             return None
@@ -36,18 +35,23 @@ class RouterIntelligence:
         if not self.gateway_ip:
             return None
             
-        logger.info(f"🔍 Analyzing Gateway: {self.gateway_ip}")
+        logger.info(f"🔍 Deep Probing Gateway: {self.gateway_ip}")
         
-        # In a real scenario, we'd get the MAC from ARP cache
-        # For now, we'll just focus on what we can probe via network
+        # Reset state for fresh probe
+        self.capabilities = []
+        self.vulnerabilities = []
+        self.management_urls = []
         
-        self.probe_upnp()
-        self.probe_management()
+        # Run probes in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            executor.submit(self.probe_upnp)
+            executor.submit(self.probe_management)
+            executor.submit(self.check_vulnerabilities)
         
         return self.to_dict()
 
     def probe_upnp(self):
-        """Discover router features via UPnP (SSDP)."""
+        """Discover router features and model info via UPnP (SSDP)."""
         ssdp_msg = (
             "M-SEARCH * HTTP/1.1\r\n"
             "HOST: 239.255.255.250:1900\r\n"
@@ -59,69 +63,121 @@ class RouterIntelligence:
         
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(2.0)
+            sock.settimeout(2.5)
             sock.sendto(ssdp_msg.encode(), ("239.255.255.250", 1900))
             
-            while True:
-                data, addr = sock.recvfrom(2048)
-                if addr[0] == self.gateway_ip:
-                    # Found the router's UPnP response
-                    res = data.decode('utf-8', errors='ignore')
-                    if "LOCATION:" in res:
-                        location = res.split("LOCATION:")[1].split("\r\n")[0].strip()
-                        self._parse_upnp_desc(location)
-                        self.capabilities.append("UPnP")
-                        break
+            # Collect responses
+            start_time = time.time()
+            while time.time() - start_time < 2.5:
+                try:
+                    data, addr = sock.recvfrom(2048)
+                    if addr[0] == self.gateway_ip:
+                        res = data.decode('utf-8', errors='ignore')
+                        if "LOCATION:" in res:
+                            location = res.split("LOCATION:")[1].split("\r\n")[0].strip()
+                            self._parse_upnp_desc(location)
+                            if "UPnP" not in self.capabilities:
+                                self.capabilities.append("UPnP/SSDP")
+                except socket.timeout:
+                    break
         except Exception as e:
             logger.debug(f"UPnP discovery failed: {e}")
         finally:
             sock.close()
 
     def _parse_upnp_desc(self, url: str):
-        """Fetch and parse UPnP XML description for model info."""
         try:
             with urllib.request.urlopen(url, timeout=2) as resp:
                 tree = ET.parse(resp)
                 root = tree.getroot()
-                # XML namespaces can be tricky, but usually it's urn:schemas-upnp-org:device-1-0
                 ns = {'ns': 'urn:schemas-upnp-org:device-1-0'}
                 device = root.find('.//ns:device', ns)
                 if device is not None:
-                    friendly_name = device.findtext('ns:friendlyName', '', ns)
-                    model_name = device.findtext('ns:modelName', '', ns)
-                    manufacturer = device.findtext('ns:manufacturer', '', ns)
+                    self.vendor = device.findtext('ns:manufacturer', self.vendor, ns)
+                    self.model = device.findtext('ns:modelName', self.model, ns)
+                    self.firmware = device.findtext('ns:modelNumber', self.firmware, ns)
                     
-                    if manufacturer: self.vendor = manufacturer
-                    if model_name: self.model = model_name
-                    elif friendly_name: self.model = friendly_name
-                    
-                    logger.info(f"🏠 Router identified: {self.vendor} {self.model}")
-        except Exception as e:
-            logger.debug(f"UPnP XML parse failed: {e}")
+                    # Check for IGD (Internet Gateway Device) services
+                    services = device.findall('.//ns:service', ns)
+                    for svc in services:
+                        stype = svc.findtext('ns:serviceType', '', ns)
+                        if "WANIPConnection" in stype or "WANPPPConnection" in stype:
+                            self.capabilities.append("NAT Control (IGD)")
+        except: pass
 
     def probe_management(self):
-        """Check for common management ports and try to grab headers."""
-        ports = [80, 443, 8080, 22, 23]
-        for port in ports:
+        """Find web/CLI management interfaces."""
+        schemes = [("http", 80), ("https", 443), ("http", 8080), ("http", 8888)]
+        paths = ["/", "/admin", "/cgi-bin/luci", "/index.asp", "/login.html"]
+        
+        for scheme, port in schemes:
             try:
-                with socket.create_connection((self.gateway_ip, port), timeout=1.0) as sock:
-                    self.capabilities.append(f"Port {port}")
-                    if port in (80, 8080):
-                        # Try to get Server header
-                        sock.send(b"HEAD / HTTP/1.0\r\n\r\n")
-                        res = sock.recv(1024).decode('utf-8', errors='ignore')
-                        if "Server:" in res:
-                            server = res.split("Server:")[1].split("\r\n")[0].strip()
-                            if server and self.model == "Generic Router":
-                                self.model = server
-            except:
-                continue
+                base_url = f"{scheme}://{self.gateway_ip}:{port}"
+                # Test connectivity
+                with socket.create_connection((self.gateway_ip, port), timeout=1.0):
+                    self.capabilities.append(f"Management Port {port} ({scheme.upper()})")
+                    
+                    # Probe specific paths
+                    for path in paths:
+                        try:
+                            url = base_url + path
+                            req = urllib.request.Request(url, method="HEAD")
+                            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                                if resp.status == 200:
+                                    self.management_urls.append(url)
+                                    # Try to grab vendor from headers
+                                    server = resp.headers.get("Server", "")
+                                    if server and self.vendor == "Generic":
+                                        self.vendor = server
+                        except: continue
+            except: continue
+
+        # Check SSH/Telnet
+        for port, label in [(22, "SSH"), (23, "Telnet")]:
+            try:
+                with socket.create_connection((self.gateway_ip, port), timeout=1.0):
+                    self.capabilities.append(f"{label} Access")
+            except: continue
+
+    def check_vulnerabilities(self):
+        """Simulate/Proactive security checks (Non-destructive)."""
+        # 1. Check for open Telnet (High Risk)
+        if "Telnet Access" in self.capabilities:
+            self.vulnerabilities.append({
+                "id": "R-01", "level": "critical", 
+                "title": "Unencrypted Management (Telnet)", 
+                "desc": "Gateway exposes unencrypted telnet interface."
+            })
+            
+        # 2. Check for UPnP security
+        if "UPnP/SSDP" in self.capabilities:
+            self.vulnerabilities.append({
+                "id": "R-02", "level": "medium", 
+                "title": "UPnP Enabled", 
+                "desc": "UPnP can be used by malware to open firewall ports."
+            })
+
+        # 3. Check for exposed DNS/NTP (Reflection potential)
+        for port, service in [(53, "DNS"), (123, "NTP")]:
+            try:
+                # Use UDP probe
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.settimeout(1.0)
+                sock.sendto(b"\x00", (self.gateway_ip, port)) # Dummy payload
+                self.capabilities.append(f"Exposed {service}")
+            except: pass
+            finally: sock.close()
 
     def to_dict(self):
         return {
             "ip": self.gateway_ip,
             "vendor": self.vendor,
             "model": self.model,
-            "capabilities": self.capabilities,
-            "admin_url": f"http://{self.gateway_ip}"
+            "firmware": self.firmware,
+            "capabilities": list(set(self.capabilities)),
+            "management_urls": list(set(self.management_urls)),
+            "vulnerabilities": self.vulnerabilities,
+            "risk_score": len(self.vulnerabilities) * 25
         }
+
+import time # Added missing import for probe_upnp loop

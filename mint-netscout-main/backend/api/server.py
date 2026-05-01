@@ -258,7 +258,9 @@ def block_device(mac):
     blocked = data.get("blocked", True)
     db = get_db()
     try:
-        device = db.query(Device).filter_by(mac=mac.upper()).first()
+        # Normalize MAC
+        mac_upper = mac.upper()
+        device = db.query(Device).filter_by(mac=mac_upper).first()
         if not device:
             return jsonify({"success": False, "error": "Device not found"}), 404
         
@@ -267,9 +269,12 @@ def block_device(mac):
             device.is_trusted = False
             
         db.commit()
+        logger.info(f"🛡️ Device {mac_upper} block state updated to: {blocked}")
+        
+        # Sync with sniffer
         _sync_sniffer_blocking()
         
-        return jsonify({"success": True, "blocked": blocked, "mac": mac})
+        return jsonify({"success": True, "blocked": blocked, "mac": mac_upper})
     except Exception as e:
         logger.error(f"Block device error: {e}", exc_info=True)
         db.rollback()

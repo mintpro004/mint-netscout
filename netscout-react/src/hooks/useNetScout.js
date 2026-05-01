@@ -62,25 +62,38 @@ export function useNetScout() {
     return { success: true }
   }, [])
 
-  const trustDevice = useCallback(async (mac, trusted) => {
-    try {
-      const res = await api.trustDevice(mac, trusted)
-      if (res.success) setDevices(p => p.map(d => d.mac === mac ? { ...d, is_trusted: trusted } : d))
-      return res
-    } catch (e) {
-      return { success: false, error: e.message }
-    }
-  }, [])
-
   const blockDevice = useCallback(async (mac, blocked) => {
+    // Optimistic update
+    setDevices(p => p.map(d => d.mac === mac ? { ...d, is_blocked: blocked, is_trusted: blocked ? false : d.is_trusted } : d))
+    
     try {
       const res = await api.blockDevice(mac, blocked)
-      if (res.success) setDevices(p => p.map(d => d.mac === mac ? { ...d, is_blocked: blocked, is_trusted: blocked ? false : d.is_trusted } : d))
+      if (!res.success) {
+        // Rollback on failure
+        fetchAll()
+      }
       return res
     } catch (e) {
+      fetchAll()
       return { success: false, error: e.message }
     }
-  }, [])
+  }, [fetchAll])
+
+  const trustDevice = useCallback(async (mac, trusted) => {
+    // Optimistic update
+    setDevices(p => p.map(d => d.mac === mac ? { ...d, is_trusted: trusted } : d))
+    
+    try {
+      const res = await api.trustDevice(mac, trusted)
+      if (!res.success) {
+        fetchAll()
+      }
+      return res
+    } catch (e) {
+      fetchAll()
+      return { success: false, error: e.message }
+    }
+  }, [fetchAll])
 
   const removeDevice = useCallback(async (mac) => {
     try {
