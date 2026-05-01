@@ -6,6 +6,8 @@ export function useNetScout() {
   const [unsafe,     setUnsafe]    = useState([])
   const [intelHistory, setIntelHistory] = useState([])
   const [status,     setStatus]    = useState(null)
+  const [routerInfo, setRouterInfo] = useState(null)
+  const [systemStats, setSystemStats] = useState(null)
   const [alerts,     setAlerts]    = useState([])
   const [scanning,   setScanning]  = useState(false)
   const [scanMsg,    setScanMsg]   = useState('')
@@ -24,6 +26,8 @@ export function useNetScout() {
     api.getUnsafe().then(u => setUnsafe(u.unsafe_zone || [])).catch(e => console.warn('unsafe:', e))
     api.getIntelHistory().then(h => setIntelHistory(h.history || [])).catch(e => console.warn('history:', e))
     api.getStatus().then(setStatus).catch(e => console.warn('status:', e))
+    api.getRouterInfo().then(r => setRouterInfo(r.router)).catch(e => console.warn('router:', e))
+    api.getSystemStats().then(setSystemStats).catch(e => console.warn('sysstats:', e))
   }, [])
 
   // ── Socket ────────────────────────────────────────────────────────────────
@@ -149,7 +153,7 @@ export function useNetScout() {
   const unacked = useMemo(() => alerts.filter(a => !a.acked),                 [alerts])
 
   return {
-    devices, visible, hidden, online, trusted, unsafe, intelHistory, status, alerts, unacked,
+    devices, visible, hidden, online, trusted, unsafe, intelHistory, status, routerInfo, systemStats, alerts, unacked,
     scanning, scanMsg, connected, hiddenMacs,
     fetchAll, triggerScan, trustDevice, blockDevice, removeDevice,
     investigateDevice, ackAlert, ackAll, hideDevice, clearHidden, markIntel,

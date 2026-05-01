@@ -524,20 +524,29 @@ class OUIDatabase:
 
 # ─── TTL → OS Fingerprinting ──────────────────────────────────────────────────
 
-def fingerprint_os_from_ttl(ttl: int) -> str:
+def fingerprint_os_from_ttl(ttl: int) -> dict:
     """
-    Rough OS detection from ICMP TTL values.
-    Not 100% reliable but good heuristic for common devices.
+    Enhanced OS detection from ICMP TTL values and hardware properties.
+    Returns a dict with os and arch_hint.
     """
+    res = {"os": "Unknown", "arch": "unknown"}
     if ttl <= 0:
-        return "Unknown"
+        return res
+    
+    if ttl <= 32:
+        res["os"] = "Embedded/RTOS"
+        res["arch"] = "arm/mips"
     elif ttl <= 64:
-        return "Linux/Android/iOS"
+        res["os"] = "Linux/Android/iOS"
+        res["arch"] = "arm64/x86_64"
     elif ttl <= 128:
-        return "Windows"
+        res["os"] = "Windows"
+        res["arch"] = "x86_64"
     elif ttl <= 255:
-        return "Cisco/Network Device"
-    return "Unknown"
+        res["os"] = "Network Device (Cisco/FreeBSD)"
+        res["arch"] = "mips/powerpc"
+    
+    return res
 
 
 # ─── Hostname → Device Type Hints ─────────────────────────────────────────────
@@ -548,6 +557,9 @@ HOSTNAME_TYPE_HINTS: Dict[str, str] = {
     "android":    "mobile",
     "galaxy":     "mobile",
     "pixel":      "mobile",
+    "oneplus":    "mobile",
+    "huawei":     "mobile",
+    "xiaomi":     "mobile",
     "airpods":    "mobile",
     "macbook":    "pc",
     "imac":       "pc",
@@ -556,17 +568,21 @@ HOSTNAME_TYPE_HINTS: Dict[str, str] = {
     "desktop":    "pc",
     "laptop":     "pc",
     "workstation":"pc",
+    "surface":    "pc",
     "router":     "router",
     "gateway":    "router",
     "modem":      "router",
     "ap-":        "router",
     "access-pt":  "router",
     "unifi":      "router",
+    "tplink":     "router",
+    "netgear":    "router",
     "printer":    "printer",
     "print":      "printer",
     "hp-":        "printer",
     "canon":      "printer",
     "epson":      "printer",
+    "brother":    "printer",
     "raspberrypi":"iot",
     "esp":        "iot",
     "arduino":    "iot",
@@ -574,23 +590,28 @@ HOSTNAME_TYPE_HINTS: Dict[str, str] = {
     "echo":       "iot",
     "alexa":      "iot",
     "roomba":     "iot",
+    "hue-":       "iot",
     "camera":     "camera",
     "cam-":       "camera",
     "nvr":        "camera",
     "dvr":        "camera",
     "hikvision":  "camera",
+    "dahua":      "camera",
     "appletv":    "tv",
     "roku":       "tv",
     "firetv":     "tv",
     "chromecast": "tv",
     "shield":     "tv",
+    "smart-tv":   "tv",
     "ps4":        "gaming",
     "ps5":        "gaming",
     "xbox":       "gaming",
     "nintendo":   "gaming",
+    "switch":     "gaming",
     "synology":   "nas",
     "qnap":       "nas",
     "nas-":       "nas",
+    "terramaster":"nas",
 }
 
 
@@ -624,6 +645,7 @@ class DeviceFingerprint:
     vendor: str = "Unknown"
     device_type: str = "unknown"
     os_hint: str = ""
+    arch_hint: str = "unknown"
     confidence: int = 0   # 0-100
 
     def to_dict(self) -> dict:
@@ -634,6 +656,7 @@ class DeviceFingerprint:
             "device_icon": type_info["icon"],
             "device_label": type_info["label"],
             "os_hint": self.os_hint,
+            "arch_hint": self.arch_hint,
             "confidence": self.confidence,
         }
 
@@ -680,7 +703,9 @@ class DeviceFingerprinter:
 
         # ── TTL Fingerprinting ────────────────────────────────────────────────
         if ttl > 0:
-            fp.os_hint = fingerprint_os_from_ttl(ttl)
+            ttl_info = fingerprint_os_from_ttl(ttl)
+            fp.os_hint = ttl_info["os"]
+            fp.arch_hint = ttl_info["arch"]
             confidence_points += 10
 
             # Refine device type from OS
@@ -692,9 +717,17 @@ class DeviceFingerprinter:
         # ── Port-based Fingerprinting ─────────────────────────────────────────
         if open_ports:
             port_type = self._guess_from_ports(open_ports)
-            if port_type and fp.device_type == "unknown":
-                fp.device_type = port_type
-                confidence_points += 15
+            if port_type:
+                if fp.device_type == "unknown" or confidence_points < 50:
+                    fp.device_type = port_type
+                    confidence_points += 15
+                
+                # Architecture refinement from ports
+                if 22 in open_ports and fp.arch_hint == "unknown":
+                    fp.arch_hint = "x86_64/arm64"
+                if 3389 in open_ports:
+                    fp.os_hint = "Windows"
+                    fp.arch_hint = "x86_64"
 
         fp.confidence = min(confidence_points, 100)
         return fp

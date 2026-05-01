@@ -32,8 +32,9 @@ from backend.database.models import (
 from backend.core.engine import DiscoveryEngine, get_local_network, check_permissions
 from backend.modules.fingerprint import DeviceFingerprinter
 from backend.modules.port_scanner import PortScanner
-from backend.modules.monitor import MonitorWorker
+from backend.modules.monitor import MonitorWorker, NetworkAlert
 from backend.modules.sniffer import TrafficSniffer
+from backend.modules.router import RouterIntelligence
 
 # ─── Setup ───────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ socketio = SocketIO(
 # Shared instances
 fingerprinter = DeviceFingerprinter()
 port_scanner = PortScanner()
+router_intel = RouterIntelligence()
 monitor: Optional[MonitorWorker] = None
 sniffer: Optional[TrafficSniffer] = None
 
@@ -72,6 +74,9 @@ def get_monitor():
 def on_connect():
     logger.info(f"🔌 Client connected: {request.sid} (Remote: {request.remote_addr})")
     _sync_sniffer_blocking()
+    # Trigger a background scan if requested on connection
+    if os.environ.get("NETSCOUT_AUTO_SCAN") == "1":
+        trigger_scan_api()
 
 def _sync_sniffer_blocking():
     if sniffer:
@@ -122,6 +127,29 @@ def add_security_headers(response):
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com;"
     return response
+
+@app.route("/api/router", methods=["GET"])
+def get_router_info():
+    """Identify and probe the network gateway."""
+    info = router_intel.discover_gateway()
+    if not info:
+        return jsonify({"success": False, "error": "Could not identify gateway"}), 404
+    return jsonify({"success": True, "router": info})
+
+@app.route("/api/system/stats", methods=["GET"])
+def get_system_stats():
+    """Return hardware and OS stats for the host."""
+    import psutil
+    import platform
+    return jsonify({
+        "os": platform.system(),
+        "release": platform.release(),
+        "arch": platform.machine(),
+        "cpu_count": psutil.cpu_count(),
+        "memory_total": round(psutil.virtual_memory().total / (1024**3), 2), # GB
+        "cpu_usage": psutil.cpu_percent(),
+        "memory_usage": psutil.virtual_memory().percent,
+    })
 
 @app.route("/api/devices/add", methods=["POST"])
 def add_device_manual():
@@ -251,26 +279,33 @@ def block_device(mac):
 
 @app.route("/api/devices/<mac>/investigate", methods=["POST"])
 def investigate_device(mac):
-    """Perform an immediate aggressive port scan on a specific device."""
+    """Perform an immediate aggressive scan on a specific device."""
     db = get_db()
     try:
         repo = DeviceRepository(db)
         device = repo.get_by_mac(mac)
         if not device: return jsonify({"error": "Not found"}), 404
         
-        logger.info(f"🔍 Investigating device {device.ip}...")
-        results = PortScanner().scan_device(device.ip, mode="full")
+        logger.info(f"🔍 Deep investigation of device {device.ip}...")
         
-        # FIX BE-03: properly serialize port list to JSON string before assigning to ORM field
-        import json
-        port_dicts = [p.to_dict() for p in results]
-        device.open_ports = json.dumps(port_dicts)
-        db.commit()
+        # Aggressive scan for this specific host
+        from backend.core.engine import DiscoveryEngine
+        engine = DiscoveryEngine()
+        # Note: subnet can be just the IP for a single host scan
+        results = engine.scan_network(subnet=f"{device.ip}/32", aggressive=True)
+        
+        if results:
+            found = results[0]
+            device.hostname = found.hostname or device.hostname
+            device.vendor = found.vendor or device.vendor
+            device.device_type = found.device_type or device.device_type
+            device.os_hint = found.os_hint or device.os_hint
+            device.open_ports = json.dumps(found.open_ports)
+            db.commit()
         
         return jsonify({
             "success": True, 
-            "ports": port_dicts,
-            "risk": PortScanner.risk_summary(results)
+            "device": device.to_dict()
         })
     except Exception as e:
         logger.error(f"Investigate error: {e}", exc_info=True)
@@ -392,12 +427,14 @@ def get_status():
     finally:
         db.close()
     
+    import psutil
     return jsonify({
         "name": "Mint NetScout",
         "developer": "mintprojects",
         "permissions": {"has_raw_socket": has_perms, "message": perm_msg},
         "networks": networks,
         "device_stats": stats,
+        "system_load": psutil.cpu_percent(),
         "version": "2.1.0-PRO"
     })
 
@@ -412,9 +449,9 @@ def open_browser(host, port):
     logger.info(f"🚀 Mint NetScout Auto-launch: {url}")
     webbrowser.open(url)
 
-def main():
+def start_background_tasks():
+    """Initialize monitor and sniffer in separate threads after server start."""
     global monitor, sniffer
-    init_db()
     
     # 1. Start Monitor
     monitor = MonitorWorker(scan_interval=30, on_event=emit_alert)
@@ -446,9 +483,18 @@ def main():
         sniffer._log_visit = log_sniffer_visit
         _sync_sniffer_blocking()
 
+def main():
+    init_db()
+    
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
+    
+    # Start background tasks in a separate thread to not block server binding
+    threading.Thread(target=start_background_tasks, daemon=True).start()
+    
     threading.Thread(target=open_browser, args=(host, port), daemon=True).start()
+    
+    logger.info(f"🛰️  Starting Mint NetScout Intelligence Server on {host}:{port}")
     socketio.run(app, host=host, port=port, debug=False, use_reloader=False)
 
 if __name__ == "__main__":

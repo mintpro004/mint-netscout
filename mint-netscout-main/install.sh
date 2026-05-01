@@ -23,20 +23,45 @@ fi
 
 # 2. Check Node.js Version
 log "Checking Node.js version..."
+# Try to source NVM if it exists to pick up the correct node version
+if [ -f "$HOME/.nvm/nvm.sh" ]; then
+    . "$HOME/.nvm/nvm.sh"
+elif [ -f "/home/$SUDO_USER/.nvm/nvm.sh" ]; then
+    . "/home/$SUDO_USER/.nvm/nvm.sh"
+elif [ -f "/home/$SUDO_USER/.config/nvm/nvm.sh" ]; then
+    . "/home/$SUDO_USER/.config/nvm/nvm.sh"
+fi
+
+# Ensure we check the current PATH which might already have the correct node
 if command -v node >/dev/null 2>&1; then
+    NODE_PATH=$(command -v node)
     NODE_VER=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-    if [ "$NODE_VER" -lt 20 ]; then
-        log "Warning: Node.js v20+ is recommended (detected v$NODE_VER). Frontend build may fail."
-    fi
+    success "Detected Node.js v$NODE_VER at $NODE_PATH"
 else
-    log "Warning: Node.js not found. GUI app setup will be skipped."
+    log "Warning: Node.js not found in PATH. Attempting to locate in common locations..."
+    # Check common NVM paths if not in PATH
+    POTENTIAL_NODE=$(find /home/$SUDO_USER/.config/nvm/versions/node/ -name node -type f -executable | sort -V | tail -n 1 2>/dev/null || true)
+    if [ -n "$POTENTIAL_NODE" ]; then
+        NODE_DIR=$(dirname "$POTENTIAL_NODE")
+        export PATH="$NODE_DIR:$PATH"
+        NODE_VER=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+        success "Found Node.js v$NODE_VER at $POTENTIAL_NODE"
+    else
+        log "Warning: Node.js not found. GUI app setup will be skipped."
+    fi
 fi
 
 # 3. Install System Dependencies
 log "Updating system and installing base dependencies..."
-apt-get update -qq || log "Warning: apt-get update failed, attempting to continue..."
-apt-get install -y -qq libpcap-dev python3-pip python3-venv python3-full lsof curl > /dev/null || \
-  error "Failed to install system dependencies. Ensure you have an internet connection and are on a Debian-based system."
+# Automatic installation for Debian-based systems (including Chromebooks/Crostini)
+if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq || log "Warning: apt-get update failed, attempting to continue..."
+    # Install essential build tools and libraries
+    apt-get install -y -qq build-essential libpcap-dev python3-pip python3-venv python3-full lsof curl jq avahi-utils nmblookup > /dev/null || \
+      error "Failed to install system dependencies. Ensure you have an internet connection."
+else
+    log "Warning: apt-get not found. Please ensure libpcap, python3-venv, and build-essential are installed manually."
+fi
 
 # 4. Create/Reset Virtual Environment
 log "Configuring dedicated Virtual Environment (.venv)..."
@@ -118,10 +143,12 @@ setcap cap_net_raw,cap_net_admin+eip "$REAL_PY" || log "Note: Could not set capa
 log "Configuring Standalone GUI (Electron)..."
 if command -v npm >/dev/null 2>&1; then
     cd "$PARENT_DIR/netscout-react"
-    # Double check permissions again before npm install
+    # Ensure dependencies are installed using the correct Node/npm version
+    # If running as sudo, we want to run npm as the regular user but with the current PATH
     if [ -n "$SUDO_USER" ]; then
         chown -R "$SUDO_USER":"$SUDO_USER" .
-        sudo -u "$SUDO_USER" npm install --quiet || log "Warning: npm install failed. GUI might not start."
+        # We use 'env PATH=$PATH' to ensure the user's npm (possibly NVM) is used
+        sudo -u "$SUDO_USER" env "PATH=$PATH" npm install --quiet || log "Warning: npm install failed. GUI might not start."
     else
         npm install --quiet
     fi

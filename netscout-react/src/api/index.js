@@ -34,6 +34,8 @@ export const api = {
   getUnsafe:       ()          => get('/api/intel/unsafe'),
   getIntelHistory: ()          => get('/api/intel/history'),
   checkUpdates:    ()          => get('/api/update/check'),
+  getRouterInfo:   ()          => get('/api/router'),
+  getSystemStats:  ()          => get('/api/system/stats'),
 
   addDevice:       (data)      => post('/api/devices/add', data),
   triggerScan:     (aggressive) => post('/api/scan', { aggressive }),

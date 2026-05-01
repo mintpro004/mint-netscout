@@ -47,6 +47,7 @@ class DiscoveredDevice:
     vendor: str = "Unknown"
     device_type: str = "unknown"
     os_hint: str = ""
+    arch_hint: str = "unknown"
     device_icon: str = "❓"
     open_ports: List = field(default_factory=list)  # list of port dicts or ints
 
@@ -68,6 +69,7 @@ class DiscoveredDevice:
             "vendor": self.vendor,
             "device_type": self.device_type,
             "os_hint": self.os_hint,
+            "arch_hint": self.arch_hint,
             "device_icon": self.device_icon,
             "open_ports": self.open_ports,
         }
@@ -595,6 +597,7 @@ class DiscoveryEngine:
                     d.vendor = fp.vendor
                     d.device_type = fp.device_type
                     d.os_hint = fp.os_hint
+                    d.arch_hint = fp.arch_hint
                     d.device_icon = fp.to_dict().get("device_icon", "❓")
                 except Exception as fp_err:
                     logger.debug(f"Fingerprint failed for {d.ip}: {fp_err}")

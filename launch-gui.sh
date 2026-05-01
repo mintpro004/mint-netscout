@@ -41,24 +41,45 @@ sudo env PYTHONPATH="$DIR/mint-netscout-main" NETSCOUT_GUI_MODE=1 "$DIR/mint-net
 BACKEND_PID=$!
 
 # 2. Wait for backend to be ready
-echo "[*] Waiting for backend to initialize..."
-MAX_RETRIES=20
+echo "[*] Waiting for Intelligence Engine to initialize..."
+MAX_RETRIES=30
 COUNT=0
-until curl -s http://localhost:5000/api/status > /dev/null; do
+READY=0
+while [ $COUNT -lt $MAX_RETRIES ]; do
+    if curl -s http://localhost:5000/api/status > /dev/null; then
+        READY=1
+        break
+    fi
     sleep 1
     COUNT=$((COUNT + 1))
-    if [ $COUNT -ge $MAX_RETRIES ]; then
-        echo "[!] Error: Backend failed to start."
-        echo "[*] --- Backend Log (Last 20 lines) ---"
-        tail -n 20 "$LOG_FILE"
-        echo "[*] ------------------------------------"
-        sudo kill $BACKEND_PID 2>/dev/null || true
-        exit 1
+    if [ $((COUNT % 5)) -eq 0 ]; then
+        echo "[*] Still waiting... ($COUNT/$MAX_RETRIES)"
     fi
 done
+
+if [ $READY -eq 0 ]; then
+    echo "[!] Error: Backend failed to respond after ${MAX_RETRIES}s."
+    echo "[*] --- Backend Log (Last 30 lines) ---"
+    tail -n 30 "$LOG_FILE"
+    echo "[*] ------------------------------------"
+    sudo kill $BACKEND_PID 2>/dev/null || true
+    exit 1
+fi
+
+echo "[+] Intelligence Engine is READY."
 
 # 3. Start Frontend (Electron as current User)
 echo "[*] Launching Dashboard GUI..."
 cd netscout-react
+
+# Proactively fix Node path for NVM users in the launcher
+if ! command -v npm >/dev/null 2>&1; then
+    # Try common NVM paths
+    NVM_NODE=$(find "$HOME/.config/nvm/versions/node/" -name node -type f -executable | sort -V | tail -n 1 2>/dev/null || true)
+    if [ -n "$NVM_NODE" ]; then
+        export PATH="$(dirname "$NVM_NODE"):$PATH"
+    fi
+fi
+
 # We run this as the current user, so it has access to the X server/DISPLAY
 npm run gui
