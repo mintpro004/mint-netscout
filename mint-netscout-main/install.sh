@@ -57,8 +57,13 @@ log "Updating system and installing base dependencies..."
 if command -v apt-get >/dev/null 2>&1; then
     apt-get update -qq || log "Warning: apt-get update failed, attempting to continue..."
     # Install essential build tools and libraries
-    apt-get install -y -qq build-essential libpcap-dev python3-pip python3-venv python3-full lsof curl jq avahi-utils nmblookup > /dev/null || \
-      error "Failed to install system dependencies. Ensure you have an internet connection."
+    # nmblookup is provided by samba-common-bin
+    apt-get install -y -qq build-essential libpcap-dev python3-pip python3-venv python3-full lsof curl jq avahi-utils samba-common-bin > /dev/null || \
+      log "Warning: Some packages failed to install. Trying to install essential ones only..."
+    
+    # Fallback for essential packages if the bulk install failed
+    apt-get install -y -qq build-essential libpcap-dev python3-pip python3-venv python3-full lsof curl > /dev/null || \
+      error "Failed to install essential system dependencies. Ensure you have an internet connection."
 else
     log "Warning: apt-get not found. Please ensure libpcap, python3-venv, and build-essential are installed manually."
 fi
