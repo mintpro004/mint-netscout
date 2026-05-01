@@ -76,7 +76,7 @@ def setup():
         f.write("    sleep 1\n")
         f.write("fi\n\n")
         f.write("echo '🛰️  Launching Mint NetScout SIGINT PRO...'\n")
-        f.write(f"sudo \"{active_python}\" -m backend.api.server\n")
+        f.write(f"sudo env PYTHONPATH='{os.getcwd()}' NETSCOUT_GUI_MODE=\"$NETSCOUT_GUI_MODE\" \"{active_python}\" -m backend.api.server\n")
     
     run_cmd(f"chmod +x {launcher}")
 

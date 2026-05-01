@@ -101,7 +101,7 @@ fi
 
 echo '🛰️  Launching Mint NetScout SIGINT PRO...'
 # Run using the venv python with sudo for raw socket access
-sudo "\$DIR/.venv/bin/python3" -m backend.api.server
+sudo env PYTHONPATH="\$DIR" NETSCOUT_GUI_MODE="\$NETSCOUT_GUI_MODE" "\$DIR/.venv/bin/python3" -m backend.api.server
 EOF
 
 chmod +x netscout.sh

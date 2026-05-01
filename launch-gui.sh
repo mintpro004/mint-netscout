@@ -8,43 +8,43 @@ set -e
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "$DIR"
 
-# 1. Privilege Escalation (sudo)
-if [ "$EUID" -ne 0 ]; then
-    echo "[*] Elevating privileges for deep network scanning..."
-    # Give root access to the X server (common fix for 'No protocol specified')
-    xhost +local:root > /dev/null 2>&1 || true
-    # Preserve environment (including DISPLAY and XAUTHORITY)
-    sudo -E "$0" "$@"
-    exit $?
-fi
+# Cleanup function
+cleanup() {
+    echo "[*] Shutting down Intelligence Engine..."
+    if [ ! -z "$BACKEND_PID" ]; then
+        sudo kill $BACKEND_PID 2>/dev/null || true
+    fi
+    exit
+}
 
-# 2. Start Backend
+# Trap signals for cleanup
+trap cleanup SIGINT SIGTERM EXIT
+
+# 1. Start Backend (Privileged)
 echo "[*] Starting Intelligence Engine..."
 # Set ENV variable to tell backend NOT to open a browser window automatically
 export NETSCOUT_GUI_MODE=1
-./mint-netscout-main/netscout.sh > /dev/null 2>&1 &
+
+# Run backend with sudo. It will prompt for password if not already cached.
+sudo env NETSCOUT_GUI_MODE=1 ./mint-netscout-main/netscout.sh > /dev/null 2>&1 &
 BACKEND_PID=$!
 
-# Wait for backend to be ready
+# 2. Wait for backend to be ready
 echo "[*] Waiting for backend to initialize..."
-MAX_RETRIES=15
+MAX_RETRIES=20
 COUNT=0
 until curl -s http://localhost:5000/api/status > /dev/null; do
     sleep 1
     COUNT=$((COUNT + 1))
     if [ $COUNT -ge $MAX_RETRIES ]; then
-        echo "[!] Error: Backend failed to start."
-        kill $BACKEND_PID 2>/dev/null
+        echo "[!] Error: Backend failed to start. Check if port 5000 is occupied."
+        sudo kill $BACKEND_PID 2>/dev/null || true
         exit 1
     fi
 done
 
-# 3. Start Frontend (Electron)
+# 3. Start Frontend (Electron as current User)
 echo "[*] Launching Dashboard GUI..."
 cd netscout-react
-# Note: --no-sandbox is required when running Electron as root
-npm run gui -- --no-sandbox
-
-# 4. Cleanup on Exit
-echo "[*] Shutting down..."
-kill $BACKEND_PID 2>/dev/null || true
+# We run this as the current user, so it has access to the X server/DISPLAY
+npm run gui
