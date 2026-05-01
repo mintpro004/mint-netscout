@@ -57,8 +57,11 @@ log "Updating system and installing base dependencies..."
 if command -v apt-get >/dev/null 2>&1; then
     apt-get update -qq || log "Warning: apt-get update failed, attempting to continue..."
     # Install essential build tools and libraries
-    # nmblookup is provided by samba-common-bin
-    apt-get install -y -qq build-essential libpcap-dev python3-pip python3-venv python3-full lsof curl jq avahi-utils samba-common-bin > /dev/null || \
+    # Including common Electron dependencies for headless/VM environments
+    apt-get install -y -qq build-essential libpcap-dev python3-pip python3-venv python3-full \
+      lsof curl jq avahi-utils samba-common-bin \
+      libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+      libgtk-3-0 libgbm1 libasound2 dbus-x11 x11-utils > /dev/null || \
       log "Warning: Some packages failed to install. Trying to install essential ones only..."
     
     # Fallback for essential packages if the bulk install failed

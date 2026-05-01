@@ -266,17 +266,22 @@ class DeviceRepository:
             device = self.db.query(Device).filter_by(ip=ip, mac="").first()
 
         if device:
-            # Update existing
+            # Update existing - PROTECT MANUAL FLAGS
             # FIX BE-08: upgrade mac even if existing device had empty mac
             if mac and not device.mac:
                 device.mac = mac
             device.ip = ip or device.ip
-            device.hostname = device_data.get("hostname", device.hostname) or device.hostname
+            
+            # Only update hostname if not manually aliased
+            if not device.alias:
+                device.hostname = device_data.get("hostname", device.hostname) or device.hostname
+            
             device.last_seen = time.time()
             device.is_online = True
             device.latency_ms = device_data.get("latency_ms", device.latency_ms)
             device.traffic_in = device_data.get("traffic_in", device.traffic_in)
             device.traffic_out = device_data.get("traffic_out", device.traffic_out)
+            
             if device_data.get("vendor", "Unknown") not in ("Unknown", ""):
                 device.vendor = device_data["vendor"]
             if device_data.get("device_type", "unknown") not in ("unknown", ""):
@@ -284,6 +289,9 @@ class DeviceRepository:
                 device.device_icon = device_data.get("device_icon", device.device_icon)
             if device_data.get("os_hint"):
                 device.os_hint = device_data["os_hint"]
+            
+            # Ensure manual states are NOT changed by discovery
+            # (Keeping existing is_blocked, is_trusted, is_registered)
         else:
             # Create new
             import json

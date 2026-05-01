@@ -86,6 +86,14 @@ export QT_X11_NO_MITSHM=1
 export _X11_NO_MITSHM=1
 export GDK_BACKEND=x11
 export ELECTRON_DISABLE_GPU=1
+export DISPLAY=${DISPLAY:-:0}
+export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 
-# We run this as the current user, so it has access to the X server/DISPLAY
-npm run gui
+# Check if we need to wrap in dbus-run-session
+if command -v dbus-run-session >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+    echo "[*] Wrapping Electron in dbus-run-session..."
+    dbus-run-session -- npm run gui
+else
+    # We run this as the current user, so it has access to the X server/DISPLAY
+    npm run gui
+fi
