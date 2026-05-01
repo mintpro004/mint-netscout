@@ -15,11 +15,11 @@ import styles             from './App.module.css'
 export default function App() {
   const ns = useNetScout()
   const {
-    devices, visible, hidden, online, trusted, unsafe, alerts, unacked,
+    devices, visible, hidden, online, trusted, unsafe, intelHistory, alerts, unacked,
     status, scanning, scanMsg, connected, hiddenMacs,
     triggerScan, blockDevice, removeDevice, investigateDevice,
     ackAlert, ackAll, hideDevice, clearHidden,
-    checkUpdates, addDevice, fetchAll,
+    checkUpdates, addDevice, fetchAll, markIntel,
   } = ns
 
   const [view,        setView]        = useState('dashboard')
@@ -202,8 +202,10 @@ export default function App() {
           {view === 'threats' && (
             <Threats
               unsafe={unsafe}
+              history={intelHistory}
               onSelectDevice={handleSelectDevice}
               onBlock={handleBlock}
+              onMark={markIntel}
             />
           )}
 

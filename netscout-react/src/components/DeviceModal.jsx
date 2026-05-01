@@ -18,7 +18,8 @@ export default function DeviceModal({ mac, devices, onClose, onInvestigate, onBl
   )
 
   const ports    = useMemo(() => parsePorts(dev?.open_ports || '[]'), [dev?.open_ports])
-  const isBlocked = !dev?.is_trusted
+  const isBlocked = dev?.is_blocked
+  const isTrusted = dev?.is_trusted
 
   if (!dev) return null
 
@@ -82,13 +83,13 @@ export default function DeviceModal({ mac, devices, onClose, onInvestigate, onBl
         {/* Status badges */}
         <div className={styles.detail} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <div className={styles.detailLbl} style={{ width: '100%' }}>Device Status</div>
-          <Badge variant={dev.is_trusted ? 'trusted' : 'warn'}>
-            {dev.is_trusted ? '✓ TRUSTED' : '⚠ UNVERIFIED'}
+          <Badge variant={isTrusted ? 'trusted' : 'warn'}>
+            {isTrusted ? '✓ TRUSTED' : '⚠ UNVERIFIED'}
           </Badge>
           <Badge variant={dev.is_online ? 'online' : 'offline'}>
             {dev.is_online ? '● ONLINE' : '○ OFFLINE'}
           </Badge>
-          {isBlocked && <Badge variant="danger">🚫 BLOCKED</Badge>}
+          {isBlocked && <Badge variant="danger">🚫 BLOCKED (RESTRICTED)</Badge>}
         </div>
 
         {/* Open ports */}

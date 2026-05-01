@@ -56,6 +56,7 @@ class Device(Base):
     device_icon = Column(String(10), default="❓")
     os_hint     = Column(String(100), default="")
     is_trusted  = Column(Boolean, default=False)
+    is_blocked  = Column(Boolean, default=False)
     is_registered = Column(Boolean, default=False)
 
     # Timing
@@ -86,6 +87,7 @@ class Device(Base):
             "device_icon": self.device_icon,
             "os_hint": self.os_hint,
             "is_trusted": self.is_trusted,
+            "is_blocked": self.is_blocked,
             "is_registered": self.is_registered,
             "first_seen": self.first_seen,
             "last_seen": self.last_seen,

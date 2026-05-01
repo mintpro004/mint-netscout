@@ -4,6 +4,7 @@ import { api, createSocket } from '../api'
 export function useNetScout() {
   const [devices,    setDevices]   = useState([])
   const [unsafe,     setUnsafe]    = useState([])
+  const [intelHistory, setIntelHistory] = useState([])
   const [status,     setStatus]    = useState(null)
   const [alerts,     setAlerts]    = useState([])
   const [scanning,   setScanning]  = useState(false)
@@ -21,6 +22,7 @@ export function useNetScout() {
   const fetchAll = useCallback(async () => {
     api.getDevices().then(d => setDevices(d.devices || [])).catch(e => console.warn('devices:', e))
     api.getUnsafe().then(u => setUnsafe(u.unsafe_zone || [])).catch(e => console.warn('unsafe:', e))
+    api.getIntelHistory().then(h => setIntelHistory(h.history || [])).catch(e => console.warn('history:', e))
     api.getStatus().then(setStatus).catch(e => console.warn('status:', e))
   }, [])
 
@@ -69,7 +71,7 @@ export function useNetScout() {
   const blockDevice = useCallback(async (mac, blocked) => {
     try {
       const res = await api.blockDevice(mac, blocked)
-      if (res.success) setDevices(p => p.map(d => d.mac === mac ? { ...d, is_trusted: !blocked } : d))
+      if (res.success) setDevices(p => p.map(d => d.mac === mac ? { ...d, is_blocked: blocked, is_trusted: blocked ? false : d.is_trusted } : d))
       return res
     } catch (e) {
       return { success: false, error: e.message }
@@ -104,6 +106,16 @@ export function useNetScout() {
     }
   }, [])
 
+  const markIntel = useCallback(async (domain, status) => {
+    try {
+      const res = await api.markIntel(domain, status)
+      if (res.success) fetchAll()
+      return res
+    } catch (e) {
+      return { success: false, error: e.message }
+    }
+  }, [fetchAll])
+
   // FIX: use _id (injected above) for stable identity so ACK works even when
   // server returns alerts without alert_type
   const ackAlert = useCallback((a) => {
@@ -137,10 +149,10 @@ export function useNetScout() {
   const unacked = useMemo(() => alerts.filter(a => !a.acked),                 [alerts])
 
   return {
-    devices, visible, hidden, online, trusted, unsafe, status, alerts, unacked,
+    devices, visible, hidden, online, trusted, unsafe, intelHistory, status, alerts, unacked,
     scanning, scanMsg, connected, hiddenMacs,
     fetchAll, triggerScan, trustDevice, blockDevice, removeDevice,
-    investigateDevice, ackAlert, ackAll, hideDevice, clearHidden,
+    investigateDevice, ackAlert, ackAll, hideDevice, clearHidden, markIntel,
     checkUpdates: api.checkUpdates,
     addDevice: api.addDevice,
   }

@@ -3,52 +3,92 @@ import { fmtTime, SEV_COLOR } from '../utils'
 import styles from './Pages.module.css'
 
 /* ── Threats ─────────────────────────────────────────────────────────────── */
-export function Threats({ unsafe, onSelectDevice, onBlock }) {
+export function Threats({ unsafe, history, onSelectDevice, onBlock, onMark }) {
   return (
-    <Panel accent="red">
-      <PanelHeader title="☣ Threat Intelligence Zone">
-        <Tag variant="red">{unsafe.length} ACTIVE THREATS</Tag>
-      </PanelHeader>
-      <div className={styles.body}>
-        {unsafe.length === 0 && (
-          <div className={styles.empty}>NO MALICIOUS ACTIVITY DETECTED</div>
-        )}
-        {unsafe.map((u, i) => {
-          // FIX: guard against missing device
-          const devMac = u.device?.mac
-          const devIp  = u.device?.ip   || '—'
-          const devHost = u.device?.hostname || 'UNKNOWN'
-          return (
-            <div key={i} className={styles.threatRow}>
-              <div className={styles.threatIcon}>⚠️</div>
-              <div className={styles.threatInfo}>
-                <div className={styles.threatName}>THREAT: {u.threat}</div>
-                <div className={styles.threatSub}>
-                  Source: {devIp} [{devHost}]
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <Panel accent="red">
+        <PanelHeader title="☣ Threat Intelligence Zone">
+          <Tag variant="red">{unsafe.length} ACTIVE THREATS</Tag>
+        </PanelHeader>
+        <div className={styles.body}>
+          {unsafe.length === 0 && (
+            <div className={styles.empty}>NO MALICIOUS ACTIVITY DETECTED</div>
+          )}
+          {unsafe.map((u, i) => {
+            const devMac = u.device?.mac
+            const devIp  = u.device?.ip   || '—'
+            const devHost = u.device?.hostname || 'UNKNOWN'
+            return (
+              <div key={i} className={styles.threatRow}>
+                <div className={styles.threatIcon}>⚠️</div>
+                <div className={styles.threatInfo}>
+                  <div className={styles.threatName}>THREAT: {u.threat}</div>
+                  <div className={styles.threatSub}>
+                    Source: {devIp} [{devHost}]
+                  </div>
+                  <div className={styles.threatActions}>
+                    <Btn
+                      variant="mint" size="sm"
+                      onClick={() => devMac && onSelectDevice(devMac)}
+                      disabled={!devMac}
+                    >
+                      🔍 INVESTIGATE
+                    </Btn>
+                    <Btn
+                      variant="red" size="sm"
+                      onClick={() => devMac && onBlock(devMac, true)}
+                      disabled={!devMac}
+                    >
+                      🚫 BLOCK
+                    </Btn>
+                    <Btn
+                      variant="gold" size="sm"
+                      onClick={() => onMark(u.threat, 'safe')}
+                    >
+                      🛡 MARK SAFE
+                    </Btn>
+                  </div>
                 </div>
-                <div className={styles.threatActions}>
-                  <Btn
-                    variant="mint" size="sm"
-                    onClick={() => devMac && onSelectDevice(devMac)}
-                    disabled={!devMac}
-                  >
-                    🔍 INVESTIGATE
-                  </Btn>
-                  <Btn
-                    variant="red" size="sm"
-                    onClick={() => devMac && onBlock(devMac, true)}
-                    disabled={!devMac}
-                  >
-                    🚫 BLOCK
-                  </Btn>
+                <div className={styles.xs}>{fmtTime(u.at)}</div>
+              </div>
+            )
+          })}
+        </div>
+      </Panel>
+
+      <Panel accent="cyan">
+        <PanelHeader title="🌐 Real-time Traffic Analysis (Safe/Unsafe Zone)">
+          <Tag variant="mint">{history.length} RECENT VISITS</Tag>
+        </PanelHeader>
+        <div className={styles.body}>
+          {history.length === 0 && (
+            <div className={styles.empty}>STILL SNIFFING PACKETS…</div>
+          )}
+          {history.map((h, i) => (
+            <div key={i} className={styles.threatRow} style={{ borderBottom: '1px solid #ffffff10', paddingBottom: 10 }}>
+              <div className={styles.threatIcon}>{h.is_malicious ? '💀' : '🌐'}</div>
+              <div className={styles.threatInfo}>
+                <div className={styles.threatName} style={{ color: h.is_malicious ? '#ff2255' : '#00ffaa' }}>
+                  {h.domain}
+                </div>
+                <div className={styles.threatSub}>
+                  Visited by: {h.device?.hostname || h.device?.ip || 'Unknown'}
                 </div>
               </div>
-              <div className={styles.xs}>{fmtTime(u.at)}</div>
+              <div className={styles.threatActions} style={{ marginLeft: 'auto' }}>
+                <Btn
+                  variant={h.is_malicious ? 'mint' : 'red'} size="xs"
+                  onClick={() => onMark(h.domain, h.is_malicious ? 'safe' : 'unsafe')}
+                >
+                  {h.is_malicious ? 'TRUST' : 'BAN'}
+                </Btn>
+              </div>
+              <div className={styles.xs} style={{ minWidth: 80, textAlign: 'right' }}>{fmtTime(h.timestamp)}</div>
             </div>
-          )
-        })}
-      </div>
-    </Panel>
+          ))}
+        </div>
+      </Panel>
+    </div>
   )
 }
 

@@ -11,13 +11,17 @@ cd "$DIR"
 # 1. Privilege Escalation (sudo)
 if [ "$EUID" -ne 0 ]; then
     echo "[*] Elevating privileges for deep network scanning..."
-    # Use sudo since pkexec might not be available
-    sudo env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY "$0" "$@"
+    # Give root access to the X server (common fix for 'No protocol specified')
+    xhost +local:root > /dev/null 2>&1 || true
+    # Preserve environment (including DISPLAY and XAUTHORITY)
+    sudo -E "$0" "$@"
     exit $?
 fi
 
 # 2. Start Backend
 echo "[*] Starting Intelligence Engine..."
+# Set ENV variable to tell backend NOT to open a browser window automatically
+export NETSCOUT_GUI_MODE=1
 ./mint-netscout-main/netscout.sh > /dev/null 2>&1 &
 BACKEND_PID=$!
 

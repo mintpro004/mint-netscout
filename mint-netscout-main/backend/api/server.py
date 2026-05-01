@@ -33,6 +33,7 @@ from backend.core.engine import DiscoveryEngine, get_local_network, check_permis
 from backend.modules.fingerprint import DeviceFingerprinter
 from backend.modules.port_scanner import PortScanner
 from backend.modules.monitor import MonitorWorker
+from backend.modules.sniffer import TrafficSniffer
 
 # ─── Setup ───────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ socketio = SocketIO(
 fingerprinter = DeviceFingerprinter()
 port_scanner = PortScanner()
 monitor: Optional[MonitorWorker] = None
+sniffer: Optional[TrafficSniffer] = None
 
 def get_monitor():
     global monitor
@@ -69,6 +71,16 @@ def get_monitor():
 @socketio.on("connect")
 def on_connect():
     logger.info(f"🔌 Client connected: {request.sid} (Remote: {request.remote_addr})")
+    _sync_sniffer_blocking()
+
+def _sync_sniffer_blocking():
+    if sniffer:
+        db = get_db()
+        try:
+            blocked_macs = [d.mac for d in db.query(Device).filter_by(is_blocked=True).all()]
+            sniffer.set_blocking(blocked_macs)
+        finally:
+            db.close()
 
 @socketio.on("disconnect")
 def on_disconnect(*args):
@@ -213,18 +225,22 @@ def remove_device(mac):
 
 @app.route("/api/devices/<mac>/block", methods=["POST"])
 def block_device(mac):
-    """Block or unblock a device (security isolation)."""
+    """Block or unblock a device (security isolation via ARP spoofing)."""
     data = request.get_json() or {}
     blocked = data.get("blocked", True)
     db = get_db()
     try:
-        repo = DeviceRepository(db)
-        device = repo.get_by_mac(mac)
+        device = db.query(Device).filter_by(mac=mac.upper()).first()
         if not device:
             return jsonify({"success": False, "error": "Device not found"}), 404
-        # FIX BE-09: track blocked state explicitly on the device via is_trusted proxy
-        # (trusted=False means blocked/unverified — consistent with UI)
-        repo.trust_device(mac, not blocked)
+        
+        device.is_blocked = blocked
+        if blocked:
+            device.is_trusted = False
+            
+        db.commit()
+        _sync_sniffer_blocking()
+        
         return jsonify({"success": True, "blocked": blocked, "mac": mac})
     except Exception as e:
         logger.error(f"Block device error: {e}", exc_info=True)
@@ -322,6 +338,49 @@ def get_unsafe_zone():
     finally:
         db.close()
 
+@app.route("/api/intel/history", methods=["GET"])
+def get_intel_history():
+    """Return all recent site visits for traffic analysis."""
+    db = get_db()
+    try:
+        visits = db.query(SiteVisit).order_by(SiteVisit.timestamp.desc()).limit(100).all()
+        history = []
+        for v in visits:
+            d = db.get(Device, v.device_id)
+            history.append({
+                "domain": v.domain,
+                "timestamp": v.timestamp,
+                "is_malicious": v.is_malicious,
+                "device": d.to_dict() if d else None
+            })
+        return jsonify({"history": history})
+    finally:
+        db.close()
+
+@app.route("/api/intel/mark", methods=["POST"])
+def mark_intel():
+    """Manually move a domain to safe or unsafe zone."""
+    data = request.get_json() or {}
+    domain = data.get("domain")
+    status = data.get("status", "unsafe") # safe or unsafe
+    if not domain: return jsonify({"error": "No domain"}), 400
+    
+    db = get_db()
+    try:
+        intel = db.query(SiteIntelligence).filter_by(domain=domain).first()
+        if not intel:
+            intel = SiteIntelligence(domain=domain, status=status)
+            db.add(intel)
+        else:
+            intel.status = status
+        
+        # Also update visits to reflect new status
+        db.query(SiteVisit).filter_by(domain=domain).update({"is_malicious": (status == "unsafe")})
+        db.commit()
+        return jsonify({"success": True, "domain": domain, "status": status})
+    finally:
+        db.close()
+
 @app.route("/api/status", methods=["GET"])
 def get_status():
     has_perms, perm_msg = check_permissions()
@@ -343,16 +402,50 @@ def get_status():
     })
 
 def open_browser(host, port):
+    # Check if we are in GUI mode
+    if os.environ.get("NETSCOUT_GUI_MODE") == "1":
+        logger.info("🖥️  GUI Mode detected: skipping browser auto-launch.")
+        return
+
     time.sleep(1.5)
     url = f"http://localhost:{port}" if host == "0.0.0.0" else f"http://{host}:{port}"
     logger.info(f"🚀 Mint NetScout Auto-launch: {url}")
     webbrowser.open(url)
 
 def main():
-    global monitor
+    global monitor, sniffer
     init_db()
+    
+    # 1. Start Monitor
     monitor = MonitorWorker(scan_interval=30, on_event=emit_alert)
     monitor.start()
+
+    # 2. Start Sniffer on primary interface
+    nets = get_local_network()
+    if nets:
+        sniffer = TrafficSniffer(interface=nets[0]['interface'])
+        sniffer.start()
+        
+        # Link sniffer to DB logging
+        def log_sniffer_visit(ip, domain):
+            db = get_db()
+            try:
+                repo = DeviceRepository(db)
+                dev = repo.get_by_ip(ip)
+                if dev:
+                    is_malicious = repo.log_visit(dev.mac, domain)
+                    if is_malicious:
+                        emit_alert(NetworkAlert(
+                            "threat_detected", 
+                            message=f"THREAT: Device {dev.hostname or dev.ip} contacted known malicious domain: {domain}",
+                            device_ip=dev.ip, device_mac=dev.mac
+                        ))
+            finally:
+                db.close()
+        
+        sniffer._log_visit = log_sniffer_visit
+        _sync_sniffer_blocking()
+
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
     threading.Thread(target=open_browser, args=(host, port), daemon=True).start()

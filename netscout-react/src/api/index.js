@@ -32,6 +32,7 @@ export const api = {
   getDevices:      ()          => get('/api/devices'),
   getStatus:       ()          => get('/api/status'),
   getUnsafe:       ()          => get('/api/intel/unsafe'),
+  getIntelHistory: ()          => get('/api/intel/history'),
   checkUpdates:    ()          => get('/api/update/check'),
 
   addDevice:       (data)      => post('/api/devices/add', data),
@@ -40,6 +41,7 @@ export const api = {
   blockDevice:     (mac, blocked)  => post(`/api/devices/${encodeURIComponent(mac)}/block`, { blocked }),
   investigateDevice: (mac)     => post(`/api/devices/${encodeURIComponent(mac)}/investigate`),
   registerDevice:  (mac, alias) => post(`/api/devices/${encodeURIComponent(mac)}/register`, { alias }),
+  markIntel:       (domain, status) => post('/api/intel/mark', { domain, status }),
   removeDevice:    (mac)       => del(`/api/devices/${encodeURIComponent(mac)}`),
 }
 
