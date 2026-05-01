@@ -18,6 +18,7 @@
     "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
+    "@electron/get": "^5.0.0",
     "@eslint/js": "^9.14.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

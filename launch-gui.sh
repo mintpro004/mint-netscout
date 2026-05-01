@@ -81,5 +81,11 @@ if ! command -v npm >/dev/null 2>&1; then
     fi
 fi
 
+# Compatibility env vars for Chromebook/Crostini
+export QT_X11_NO_MITSHM=1
+export _X11_NO_MITSHM=1
+export GDK_BACKEND=x11
+export ELECTRON_DISABLE_GPU=1
+
 # We run this as the current user, so it has access to the X server/DISPLAY
 npm run gui
