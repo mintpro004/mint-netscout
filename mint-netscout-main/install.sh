@@ -122,7 +122,7 @@ cd "\$DIR"
 
 # 1. Port Self-Healing
 PORT=5000
-PID=\$(sudo lsof -t -i:\$PORT)
+PID=\$(sudo lsof -t -i:\$PORT 2>/dev/null || echo "")
 if [ ! -z "\$PID" ]; then
     echo "[*] Port \$PORT busy. Clearing stale instance (PID: \$PID)..."
     sudo kill -9 \$PID 2>/dev/null
@@ -135,8 +135,12 @@ sudo env PYTHONPATH="\$DIR" NETSCOUT_GUI_MODE="\$NETSCOUT_GUI_MODE" "\$DIR/.venv
 EOF
 
 chmod +x netscout.sh
+# Create a symlink in the root for convenience
+ln -sf "$DIR/netscout.sh" "$PARENT_DIR/netscout.sh"
+
 if [ -n "$SUDO_USER" ]; then
     chown "$SUDO_USER":"$SUDO_USER" netscout.sh
+    chown -h "$SUDO_USER":"$SUDO_USER" "$PARENT_DIR/netscout.sh"
 fi
 
 # 8. Set Capabilities (Optional fallback for non-sudo runs)

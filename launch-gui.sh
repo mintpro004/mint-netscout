@@ -25,7 +25,7 @@ echo "[*] Starting Intelligence Engine..."
 
 # Proactively clear port 5000 before starting
 PORT=5000
-PID=$(sudo lsof -t -i:$PORT 2>/dev/null)
+PID=$(sudo lsof -t -i:$PORT 2>/dev/null || echo "")
 if [ ! -z "$PID" ]; then
     echo "[*] Clearing stale process on port $PORT (PID: $PID)..."
     sudo kill -9 $PID 2>/dev/null || true
