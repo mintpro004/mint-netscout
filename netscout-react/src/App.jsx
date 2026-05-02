@@ -29,18 +29,25 @@ export default function App() {
   const [updateInfo,  setUpdateInfo]  = useState(null)
   const [updLoading,  setUpdLoading]  = useState(false)
   const [settings,    setSettings]    = useState({ animations: true, stealth: true, interval: '30' })
-  const [isDark,      setIsDark]      = useState(true)
+  const [isDark,      setIsDark]      = useState(() => {
+    const saved = localStorage.getItem('ns_theme')
+    if (saved === 'light') {
+      document.body.classList.add('light-mode')
+      return false
+    }
+    return true
+  })
 
   const toggleTheme = () => {
     const next = !isDark
     setIsDark(next)
     
     if (next) {
-      document.documentElement.classList.remove('light-mode')
       document.body.classList.remove('light-mode')
+      localStorage.setItem('ns_theme', 'dark')
     } else {
-      document.documentElement.classList.add('light-mode')
       document.body.classList.add('light-mode')
+      localStorage.setItem('ns_theme', 'light')
     }
     
     // Tell Electron to sync native theme
