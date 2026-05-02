@@ -1,7 +1,11 @@
 const { app, BrowserWindow, ipcMain, nativeTheme } = require('electron')
 const path = require('path')
 
-// ULTRA STABILITY: Forced Software Rendering for Chromebook/Crostini
+// TOTAL HARDWARE BYPASS: Explicitly disable GPU at the engine level
+app.disableHardwareAcceleration()
+
+// Force X11 and disable all possible GPU/DRM probes
+app.commandLine.appendSwitch('ozone-platform', 'x11')
 app.commandLine.appendSwitch('disable-gpu')
 app.commandLine.appendSwitch('no-sandbox')
 app.commandLine.appendSwitch('disable-software-rasterizer')
@@ -11,11 +15,12 @@ app.commandLine.appendSwitch('disable-vulkan')
 app.commandLine.appendSwitch('disable-accelerated-2d-canvas')
 app.commandLine.appendSwitch('disable-gpu-rasterization')
 app.commandLine.appendSwitch('in-process-gpu')
-app.commandLine.appendSwitch('ozone-platform', 'x11')
 app.commandLine.appendSwitch('no-zygote')
 app.commandLine.appendSwitch('disable-setuid-sandbox')
 app.commandLine.appendSwitch('disable-namespace-sandbox')
 app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor')
+app.commandLine.appendSwitch('enable-logging', 'stderr')
+app.commandLine.appendSwitch('v', '1')
 
 function createWindow() {
   const win = new BrowserWindow({

@@ -86,13 +86,16 @@ export QT_X11_NO_MITSHM=1
 export _X11_NO_MITSHM=1
 export GDK_BACKEND=x11
 export ELECTRON_DISABLE_GPU=1
+export ELECTRON_OZONE_PLATFORM_HINT=x11
 export DISPLAY=${DISPLAY:-:0}
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 
-# Chrome/Electron Stability Flags
+# Fast Boot & Stability Flags
+export NETSCOUT_FAST_BOOT=1
 export CHROME_DEVEL_CONFIG=1
 export LIBGL_ALWAYS_SOFTWARE=1
 export MESA_LOADER_DRIVER_OVERRIDE=swrast
+export NO_AT_BRIDGE=1
 
 # Check if we need to wrap in dbus-run-session
 if command -v dbus-run-session >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then

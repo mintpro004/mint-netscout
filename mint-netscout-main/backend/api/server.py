@@ -458,8 +458,12 @@ def start_background_tasks():
     """Initialize monitor and sniffer in separate threads after server start."""
     global monitor, sniffer
     
-    # 1. Start Monitor
-    monitor = MonitorWorker(scan_interval=30, on_event=emit_alert)
+    # Deferred startup to allow server to bind instantly
+    time.sleep(2.0)
+    
+    # 1. Start Monitor (Skip heavy initial scan if FAST_BOOT is enabled)
+    interval = 60 if os.environ.get("NETSCOUT_FAST_BOOT") == "1" else 30
+    monitor = MonitorWorker(scan_interval=interval, on_event=emit_alert)
     monitor.start()
 
     # 2. Start Sniffer on primary interface
