@@ -114,6 +114,8 @@ export default function Dashboard({
     },
   ]
 
+  const isBridge = status?.networks?.[0]?.gateway?.startswith('100.115.')
+
   return (
     <div className={styles.wrap}>
       {/* KPIs */}
@@ -291,21 +293,41 @@ export default function Dashboard({
                 )}
 
                 <div style={{ marginTop: 10 }}>
-                  <button 
-                    className={styles.ackBtn} 
-                    style={{ width: '100%', fontSize: 10, background: 'var(--cyan)', color: '#000', fontWeight: 'bold' }}
-                    onClick={() => {
-                      const bestUrl = routerInfo?.management_urls?.[0] || `http://${status.networks[0].gateway}`
-                      if (window.electronAPI) window.electronAPI.openExternal(bestUrl)
-                      else window.open(bestUrl, '_blank')
-                    }}
-                  >
-                    {routerInfo?.management_urls?.length > 0 ? 'OPEN PRIMARY CONSOLE' : 'OPEN BRIDGE CONSOLE'}
-                  </button>
+                  {routerInfo?.management_urls?.length > 0 ? (
+                    <button 
+                      className={styles.ackBtn} 
+                      style={{ width: '100%', fontSize: 10, background: 'var(--cyan)', color: '#000', fontWeight: 'bold' }}
+                      onClick={() => {
+                        const url = routerInfo.management_urls[0]
+                        if (window.electronAPI) window.electronAPI.openExternal(url)
+                        else window.open(url, '_blank')
+                      }}
+                    >
+                      OPEN PRIMARY CONSOLE
+                    </button>
+                  ) : (
+                    <div style={{ padding: '8px', background: '#ff225510', border: '1px solid #ff225540', borderRadius: 4 }}>
+                      <div style={{ fontSize: 9, color: '#ff2255', fontWeight: 'bold', textAlign: 'center' }}>
+                        {isBridge ? 'PHYSICAL ROUTER NOT FOUND' : 'ADMIN CONSOLE NOT RESPONDING'}
+                      </div>
+                      <button 
+                        className={styles.ackBtn} 
+                        style={{ width: '100%', fontSize: 9, marginTop: 6, border: '1px solid #ff2255' }}
+                        onClick={() => {
+                          const url = `http://${status.networks[0].gateway}`
+                          if (window.electronAPI) window.electronAPI.openExternal(url)
+                          else window.open(url, '_blank')
+                        }}
+                      >
+                        FORCE TRY BRIDGE IP
+                      </button>
+                    </div>
+                  )}
+                  
                   <div style={{ fontSize: 7, opacity: 0.5, textAlign: 'center', marginTop: 4 }}>
                     {routerInfo?.management_urls?.length > 0 
-                      ? 'Opens the most likely router interface' 
-                      : 'Opens router settings outside of NetScout'}
+                      ? 'Opens the actual router interface' 
+                      : 'Crostini bridge IP is usually unreachable'}
                   </div>
                 </div>
               </>

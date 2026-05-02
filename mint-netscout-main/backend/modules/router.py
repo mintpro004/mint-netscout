@@ -36,30 +36,41 @@ class RouterIntelligence:
         if not self.gateway_ip:
             return None
             
-        logger.info(f"🔍 Deep Probing Gateway: {self.gateway_ip}")
+        logger.info(f"🔍 Initiating Gateway Intelligence on {self.gateway_ip}...")
         
         # Reset state for fresh probe
         self.capabilities = []
         self.vulnerabilities = []
         self.management_urls = []
         
-        # ── CROSTINI WORKAROUND ──
-        # If the gateway is the internal Crostini bridge, try common LAN IPs
-        is_bridge = self.gateway_ip.startswith("100.115.")
+        # ── DISCOVERY CANDIDATES ──
+        candidates = {self.gateway_ip}
         
+        # 1. Add DNS Servers (Highest probability of being the real router)
+        try:
+            with open('/etc/resolv.conf', 'r') as f:
+                for line in f:
+                    if line.startswith('nameserver'):
+                        ns = line.split()[1]
+                        if not ns.startswith('127.'):
+                            candidates.add(ns)
+                            logger.info(f"💡 Found DNS server candidate: {ns}")
+        except: pass
+        
+        # 2. Add common LAN defaults if in a bridge
+        if self.gateway_ip.startswith("100.115."):
+            for ip in ["192.168.1.1", "192.168.0.1", "192.168.1.254", "10.0.0.1", "10.1.1.1"]:
+                candidates.add(ip)
+
         # Run probes in parallel
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        logger.info(f"⚡ Probing {len(candidates)} gateway candidates...")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(candidates) + 2) as executor:
             executor.submit(self.probe_upnp)
-            executor.submit(self.probe_management, self.gateway_ip)
-            
-            if is_bridge:
-                # Common router IPs on typical home networks
-                # If these respond, they are likely the REAL physical gateway
-                for test_ip in ["192.168.1.1", "192.168.0.1", "192.168.1.254", "10.0.0.1", "10.1.1.1"]:
-                    executor.submit(self.probe_management, test_ip)
-                    
+            for ip in candidates:
+                executor.submit(self.probe_management, ip)
             executor.submit(self.check_vulnerabilities)
         
+        logger.info(f"✅ Gateway Analysis Complete. Found {len(self.management_urls)} interfaces.")
         return self.to_dict()
 
     def probe_upnp(self):
