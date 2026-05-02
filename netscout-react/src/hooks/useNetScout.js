@@ -115,7 +115,12 @@ export function useNetScout() {
       setScanning(false)
       setScanMsg('')
       if (res.success) {
-        setDevices(p => p.map(d => d.mac === mac ? { ...d, open_ports: res.ports || [] } : d))
+        // Sync the specific device with its new findings
+        setDevices(p => p.map(d => d.mac === mac ? { 
+          ...d, 
+          ...res.device,
+          open_ports: res.ports || [] 
+        } : d))
       }
       return res
     } catch (e) {

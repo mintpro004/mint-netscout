@@ -86,10 +86,10 @@ class TrafficSniffer:
         # For now, we just skip frequent DB writes here and rely on the monitor for volume trends
 
     def _log_visit(self, ip: str, domain: str):
-        # We need a mac to log a visit in our DB
-        # This will be handled by the monitor/server linking IPs to MACs
-        # For efficiency, we just pass this up or log it locally
-        pass # Will be integrated into server/monitor callbacks
+        # This will be handled by the server/monitor callbacks
+        # We need to find the MAC for this IP
+        if hasattr(self, 'log_callback') and self.log_callback:
+            self.log_callback(ip, domain)
 
     def _spoof_loop(self):
         """Continuously ARP spoof blocked devices to redirect their traffic to us (and then drop it)."""

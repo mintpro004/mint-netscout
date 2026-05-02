@@ -307,6 +307,7 @@ def investigate_device(mac):
             device.vendor = found.vendor or device.vendor
             device.device_type = found.device_type or device.device_type
             device.os_hint = found.os_hint or device.os_hint
+            device.is_online = True
             
             # Convert open_ports to JSON for DB storage
             import json
@@ -499,7 +500,6 @@ def start_background_tasks():
     nets = get_local_network()
     if nets:
         sniffer = TrafficSniffer(interface=nets[0]['interface'])
-        sniffer.start()
         
         # Link sniffer to DB logging
         def log_sniffer_visit(ip, domain):
@@ -518,7 +518,8 @@ def start_background_tasks():
             finally:
                 db.close()
         
-        sniffer._log_visit = log_sniffer_visit
+        sniffer.log_callback = log_sniffer_visit
+        sniffer.start()
         _sync_sniffer_blocking()
 
 def main():

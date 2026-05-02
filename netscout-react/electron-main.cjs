@@ -32,22 +32,16 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs'),
       spellcheck: false,
       backgroundThrottling: false,
     },
     icon: path.join(__dirname, 'public', 'favicon.svg')
   })
 
-  // Load the local Flask server
-  win.loadURL('http://localhost:5000')
-
   // Theme Sync Handler
-  ipcMain.handle('dark-mode:toggle', () => {
-    if (nativeTheme.shouldUseDarkColors) {
-      nativeTheme.themeSource = 'light'
-    } else {
-      nativeTheme.themeSource = 'dark'
-    }
+  ipcMain.on('dark-mode:toggle', (event, mode) => {
+    nativeTheme.themeSource = mode ? 'dark' : 'light'
     return nativeTheme.shouldUseDarkColors
   })
 

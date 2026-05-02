@@ -34,12 +34,18 @@ export default function App() {
   const toggleTheme = () => {
     const next = !isDark
     setIsDark(next)
-    if (next) document.body.classList.remove('light-mode')
-    else document.body.classList.add('light-mode')
     
-    // Optional: Tell Electron to sync native theme
+    if (next) {
+      document.documentElement.classList.remove('light-mode')
+      document.body.classList.remove('light-mode')
+    } else {
+      document.documentElement.classList.add('light-mode')
+      document.body.classList.add('light-mode')
+    }
+    
+    // Tell Electron to sync native theme
     if (window.electronAPI?.toggleDarkMode) {
-      window.electronAPI.toggleDarkMode()
+      window.electronAPI.toggleDarkMode(next)
     }
   }
 

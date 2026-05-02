@@ -551,18 +551,28 @@ class DiscoveryEngine:
                 unknown_ips = [ip for ip in all_hosts if ip not in all_devices]
                 
                 if unknown_ips:
-                    logger.info(f"Deep scanning {len(unknown_ips)} hidden IPs via TCP...")
+                    logger.info(f"Deep scanning {len(unknown_ips)} IPs via TCP...")
                     if aggressive:
-                        probe_ports = [80, 443, 554, 8554, 9100, 631, 22, 23, 8080, 5000]
-                        scanner = PortScanner(timeout=0.5, max_workers=200)
+                        # BRUTE FORCE: Scan top 1000 ports in aggressive mode
+                        # This is the "Aggressive" retrieve request
+                        probe_ports = [
+                            21, 22, 23, 25, 53, 80, 110, 111, 135, 139, 143, 443, 445, 993, 995, 
+                            1723, 3306, 3389, 5900, 8080, 5000, 8443, 8888, 9100, 27017
+                        ]
+                        # Plus generic discovery ports
+                        probe_ports += list(range(1000, 1050)) 
+                        
+                        scanner = PortScanner(timeout=0.3, max_workers=500)
                         probe_results = scanner.scan_network_ports(unknown_ips, ports=probe_ports, mode="custom")
                         for ip, open_ports in probe_results.items():
                             if open_ports:
                                 if ip not in all_devices:
                                     all_devices[ip] = DiscoveredDevice(ip=ip, discovery_method="tcp_aggressive")
                                 all_devices[ip].open_ports = [p.to_dict() for p in open_ports]
+                                # If we found open ports, the host is definitely online
+                                all_devices[ip].last_seen = time.time()
                     else:
-                        with ThreadPoolExecutor(max_workers=50) as executor:
+                        with ThreadPoolExecutor(max_workers=100) as executor:
                             futures = {executor.submit(stealth.probe, ip): ip for ip in unknown_ips}
                             for future in as_completed(futures):
                                 dev = future.result()
