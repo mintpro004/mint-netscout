@@ -46,7 +46,7 @@ MAX_RETRIES=30
 COUNT=0
 READY=0
 while [ $COUNT -lt $MAX_RETRIES ]; do
-    if curl -s http://localhost:5000/api/status > /dev/null; then
+    if curl -s http://127.0.0.1:5000/api/status > /dev/null; then
         READY=1
         break
     fi

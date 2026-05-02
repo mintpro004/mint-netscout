@@ -5,9 +5,13 @@ const path = require('path')
 app.commandLine.appendSwitch('no-sandbox')
 app.commandLine.appendSwitch('disable-setuid-sandbox')
 app.commandLine.appendSwitch('disable-gpu-sandbox')
+app.commandLine.appendSwitch('disable-namespace-sandbox')
+app.commandLine.appendSwitch('no-zygote')
 app.commandLine.appendSwitch('disable-dev-shm-usage') // Fixes /dev/shm permission issues
 app.commandLine.appendSwitch('ozone-platform', 'x11')
 app.commandLine.appendSwitch('disable-gpu') // Force software rendering for stability in VMs
+app.commandLine.appendSwitch('disable-software-rasterizer')
+app.commandLine.appendSwitch('disable-accelerated-2d-canvas')
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -36,10 +40,10 @@ function createWindow() {
     console.error(`[CRASH] Renderer: ${details.reason} (${details.exitCode})`)
   })
 
-  // Load backend with retry
+  // Load backend with retry - Use 127.0.0.1 to avoid DNS resolution issues
   const loadURL = () => {
-    win.loadURL('http://localhost:5000').catch(err => {
-      console.log('[RETRY] Backend not ready, waiting...')
+    win.loadURL('http://127.0.0.1:5000').catch(err => {
+      console.log(`[RETRY] Backend not ready (Error: ${err.code}), waiting...`)
       setTimeout(loadURL, 2000)
     })
   }
