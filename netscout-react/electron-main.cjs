@@ -8,12 +8,10 @@ app.disableHardwareAcceleration()
 app.commandLine.appendSwitch('no-sandbox')
 app.commandLine.appendSwitch('disable-setuid-sandbox')
 app.commandLine.appendSwitch('disable-gpu-sandbox')
-app.commandLine.appendSwitch('disable-namespace-sandbox')
-app.commandLine.appendSwitch('no-zygote')
 app.commandLine.appendSwitch('disable-dev-shm-usage') 
-app.commandLine.appendSwitch('disable-gpu')
-app.commandLine.appendSwitch('disable-software-rasterizer')
+app.commandLine.appendSwitch('disable-gpu') // Force software rendering for stability in VMs
 app.commandLine.appendSwitch('ozone-platform', 'x11')
+app.commandLine.appendSwitch('disable-http-cache') // Prevent stale data issues
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -34,11 +32,19 @@ function createWindow() {
     win.show()
   })
 
+  // 🛡️ SECURITY: Prevent the main window from navigating away from the dashboard
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith('http://127.0.0.1:5000') && !url.startsWith('http://localhost:5000')) {
+      event.preventDefault()
+      shell.openExternal(url)
+    }
+  })
+
   // Handle new window requests (like the Admin Console button)
-  // This prevents the main window from navigating or opening blank windows
   win.webContents.setWindowOpenHandler(({ url }) => {
-    // Open external URLs (like the router admin) in the user's default browser
+    // Open ANY external URL in the user's default browser
     if (url.startsWith('http')) {
+      console.log(`[EXTERNAL] Opening URL in system browser: ${url}`)
       shell.openExternal(url)
       return { action: 'deny' }
     }

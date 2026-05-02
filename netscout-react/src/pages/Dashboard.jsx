@@ -247,7 +247,10 @@ export default function Dashboard({
               <>
                 <div className={styles.infoRow}>
                   <span className={styles.infoLbl}>IP Address</span>
-                  <span className={styles.infoVal} style={{ color: 'var(--cyan)' }}>{status.networks[0].gateway}</span>
+                  <span className={styles.infoVal} style={{ color: 'var(--cyan)' }}>
+                    {status.networks[0].gateway}
+                    <div style={{ fontSize: 8, opacity: 0.6, marginTop: 2 }}>[CROSTINI BRIDGE]</div>
+                  </span>
                 </div>
                 <div className={styles.infoRow}>
                   <span className={styles.infoLbl}>Model</span>
@@ -271,8 +274,11 @@ export default function Dashboard({
                     style={{ width: '100%', fontSize: 10 }}
                     onClick={() => window.open(`http://${status.networks[0].gateway}`, '_blank')}
                   >
-                    OPEN ADMIN CONSOLE
+                    OPEN IN EXTERNAL BROWSER
                   </button>
+                  <div style={{ fontSize: 7, opacity: 0.5, textAlign: 'center', marginTop: 4 }}>
+                    Opens router settings outside of NetScout
+                  </div>
                 </div>
               </>
             )}
