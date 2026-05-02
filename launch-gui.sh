@@ -90,18 +90,20 @@ export ELECTRON_OZONE_PLATFORM_HINT=x11
 export DISPLAY=${DISPLAY:-:0}
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 
-# Fast Boot & Stability Flags
-export NETSCOUT_FAST_BOOT=1
+# Ultimate Stability: Force pure software stack
 export CHROME_DEVEL_CONFIG=1
 export LIBGL_ALWAYS_SOFTWARE=1
 export MESA_LOADER_DRIVER_OVERRIDE=swrast
 export NO_AT_BRIDGE=1
+export GALLIUM_DRIVER=llvmpipe
+export GSK_RENDERER=cairo
 
 # Clean Boot: Clear stale Electron caches and temporary memory segments
 echo "[*] Optimizing system for Fast Boot..."
 rm -rf "$HOME/.config/Electron/Cache"/* 2>/dev/null || true
 rm -rf "$HOME/.config/Electron/Code Cache"/* 2>/dev/null || true
 sudo rm -rf /tmp/.org.chromium.Chromium.* 2>/dev/null || true
+mkdir -p "$HOME/.config/Electron/Code Cache/pc" 2>/dev/null || true
 
 # Check if we need to wrap in dbus-run-session
 if command -v dbus-run-session >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
