@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, nativeTheme } = require('electron')
 const path = require('path')
+const http = require('http')
 
 // ULTIMATE STABILITY: Forced Software Rendering for Chromebook/Crostini
 app.disableHardwareAcceleration()
@@ -10,7 +11,7 @@ app.commandLine.appendSwitch('ozone-platform-hint', 'x11')
 app.commandLine.appendSwitch('disable-gpu')
 app.commandLine.appendSwitch('no-sandbox')
 app.commandLine.appendSwitch('disable-gpu-sandbox')
-app.commandLine.appendSwitch('disable-software-rasterizer')
+// app.commandLine.appendSwitch('disable-software-rasterizer') // REMOVED: We NEED software rasterizer if GPU is off
 app.commandLine.appendSwitch('disable-dev-shm-usage')
 app.commandLine.appendSwitch('disable-gpu-compositing')
 app.commandLine.appendSwitch('disable-vulkan')
@@ -49,9 +50,35 @@ function createWindow() {
     app.quit()
   })
 
+  // Handle load failures
+  win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error(`[!] Page failed to load: ${errorCode} (${errorDescription})`)
+    if (errorCode === -102 || errorCode === -105) { // Connection refused or DNS failed
+      console.log('[*] Retrying in 2s...')
+      setTimeout(() => win.loadURL('http://localhost:5000'), 2000)
+    }
+  })
+
+  // Auto-open DevTools if requested via ENV or to help debugging
+  if (process.env.NETSCOUT_DEBUG === '1') {
+    win.webContents.openDevTools({ mode: 'detach' })
+  }
+
   // Load the local Flask server
   win.loadURL('http://localhost:5000')
 }
+
+app.whenReady().then(() => {
+  createWindow()
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
+})
+
 
 app.whenReady().then(() => {
   createWindow()
