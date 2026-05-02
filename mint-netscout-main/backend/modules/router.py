@@ -43,10 +43,21 @@ class RouterIntelligence:
         self.vulnerabilities = []
         self.management_urls = []
         
+        # ── CROSTINI WORKAROUND ──
+        # If the gateway is the internal Crostini bridge, try common LAN IPs
+        is_bridge = self.gateway_ip.startswith("100.115.")
+        
         # Run probes in parallel
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             executor.submit(self.probe_upnp)
-            executor.submit(self.probe_management)
+            executor.submit(self.probe_management, self.gateway_ip)
+            
+            if is_bridge:
+                # Common router IPs on typical home networks
+                # If these respond, they are likely the REAL physical gateway
+                for test_ip in ["192.168.1.1", "192.168.0.1", "192.168.1.254", "10.0.0.1", "10.1.1.1"]:
+                    executor.submit(self.probe_management, test_ip)
+                    
             executor.submit(self.check_vulnerabilities)
         
         return self.to_dict()
@@ -72,13 +83,13 @@ class RouterIntelligence:
             while time.time() - start_time < 2.5:
                 try:
                     data, addr = sock.recvfrom(2048)
-                    if addr[0] == self.gateway_ip:
-                        res = data.decode('utf-8', errors='ignore')
-                        if "LOCATION:" in res:
-                            location = res.split("LOCATION:")[1].split("\r\n")[0].strip()
-                            self._parse_upnp_desc(location)
-                            if "UPnP" not in self.capabilities:
-                                self.capabilities.append("UPnP/SSDP")
+                    # For bridge environments, we accept any UPnP response as it's likely the real router
+                    res = data.decode('utf-8', errors='ignore')
+                    if "LOCATION:" in res:
+                        location = res.split("LOCATION:")[1].split("\r\n")[0].strip()
+                        self._parse_upnp_desc(location)
+                        if "UPnP" not in self.capabilities:
+                            self.capabilities.append("UPnP/SSDP")
                 except socket.timeout:
                     break
         except Exception as e:
@@ -106,43 +117,44 @@ class RouterIntelligence:
                             self.capabilities.append("NAT Control (IGD)")
         except: pass
 
-    def probe_management(self):
-        """Find web/CLI management interfaces."""
+    def probe_management(self, ip: str):
+        """Find web/CLI management interfaces on a specific IP."""
         schemes = [("http", 80), ("https", 443), ("http", 8080), ("http", 8888)]
-        paths = ["/", "/admin", "/cgi-bin/luci", "/index.asp", "/login.html"]
         
         for scheme, port in schemes:
             try:
-                base_url = f"{scheme}://{self.gateway_ip}:{port}"
-                # Test connectivity
-                with socket.create_connection((self.gateway_ip, port), timeout=1.0):
-                    self.capabilities.append(f"Management Port {port} ({scheme.upper()})")
+                base_url = f"{scheme}://{ip}:{port}"
+                # Fast connectivity check
+                with socket.create_connection((ip, port), timeout=0.8):
+                    if f"Port {port} ({scheme.upper()})" not in self.capabilities:
+                        self.capabilities.append(f"Management Port {port} ({scheme.upper()})")
                     
-                    # Probe specific paths
-                    for path in paths:
-                        try:
-                            url = base_url + path
-                            req = urllib.request.Request(url, method="HEAD")
-                            with urllib.request.urlopen(req, timeout=1.0) as resp:
-                                if resp.status == 200:
-                                    self.management_urls.append(url)
-                                    # Try to grab vendor from headers
-                                    server = resp.headers.get("Server", "")
-                                    if server and self.vendor == "Generic":
-                                        self.vendor = server
-                        except: continue
+                    # Try to confirm it's a router web UI
+                    try:
+                        req = urllib.request.Request(base_url, method="GET")
+                        with urllib.request.urlopen(req, timeout=1.0) as resp:
+                            if resp.status == 200:
+                                if base_url not in self.management_urls:
+                                    self.management_urls.append(base_url)
+                                server = resp.headers.get("Server", "")
+                                if server and self.vendor == "Generic":
+                                    self.vendor = server
+                    except:
+                        # If port is open but GET fails, still list it as a potential URL
+                        if base_url not in self.management_urls:
+                            self.management_urls.append(base_url)
             except: continue
 
         # Check SSH/Telnet
-        for port, label in [(22, "SSH"), (23, "Telnet")]:
-            try:
-                with socket.create_connection((self.gateway_ip, port), timeout=1.0):
-                    self.capabilities.append(f"{label} Access")
-            except: continue
+        if ip == self.gateway_ip:
+            for port, label in [(22, "SSH"), (23, "Telnet")]:
+                try:
+                    with socket.create_connection((ip, port), timeout=1.0):
+                        self.capabilities.append(f"{label} Access")
+                except: continue
 
     def check_vulnerabilities(self):
         """Simulate/Proactive security checks (Non-destructive)."""
-        # 1. Check for open Telnet (High Risk)
         if "Telnet Access" in self.capabilities:
             self.vulnerabilities.append({
                 "id": "R-01", "level": "critical", 
@@ -150,7 +162,6 @@ class RouterIntelligence:
                 "desc": "Gateway exposes unencrypted telnet interface."
             })
             
-        # 2. Check for UPnP security
         if "UPnP/SSDP" in self.capabilities:
             self.vulnerabilities.append({
                 "id": "R-02", "level": "medium", 
@@ -158,13 +169,11 @@ class RouterIntelligence:
                 "desc": "UPnP can be used by malware to open firewall ports."
             })
 
-        # 3. Check for exposed DNS/NTP (Reflection potential)
         for port, service in [(53, "DNS"), (123, "NTP")]:
             try:
-                # Use UDP probe
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.settimeout(1.0)
-                sock.sendto(b"\x00", (self.gateway_ip, port)) # Dummy payload
+                sock.sendto(b"\x00", (self.gateway_ip, port))
                 self.capabilities.append(f"Exposed {service}")
             except: pass
             finally: sock.close()
@@ -176,9 +185,7 @@ class RouterIntelligence:
             "model": self.model,
             "firmware": self.firmware,
             "capabilities": list(set(self.capabilities)),
-            "management_urls": list(set(self.management_urls)),
+            "management_urls": sorted(list(set(self.management_urls))),
             "vulnerabilities": self.vulnerabilities,
             "risk_score": len(self.vulnerabilities) * 25
         }
-
-import time # Added missing import for probe_upnp loop

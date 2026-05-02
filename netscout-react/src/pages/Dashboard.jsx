@@ -263,25 +263,49 @@ export default function Dashboard({
                 <div className={styles.infoRow}>
                   <span className={styles.infoLbl}>Capabilities</span>
                   <div className={styles.infoVal} style={{ textAlign: 'right', fontSize: 9 }}>
-                    {(routerInfo?.capabilities || ['NAT', 'DHCP']).slice(0, 3).map(c => (
+                    {(routerInfo?.capabilities || ['NAT', 'DHCP']).slice(0, 4).map(c => (
                       <Tag key={c} variant={c.includes('UPnP') ? 'red' : 'mint'}>{c}</Tag>
                     ))}
                   </div>
                 </div>
+
+                {routerInfo?.management_urls?.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className={styles.infoLbl} style={{ fontSize: 8, marginBottom: 5 }}>DISCOVERED INTERFACES</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {routerInfo.management_urls.map(url => (
+                        <button
+                          key={url}
+                          className={styles.ackBtn}
+                          style={{ width: '100%', fontSize: 9, textAlign: 'left', padding: '4px 8px', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          onClick={() => {
+                            if (window.electronAPI) window.electronAPI.openExternal(url)
+                            else window.open(url, '_blank')
+                          }}
+                        >
+                          🔗 {url.replace('http://', '').replace('https://', '')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ marginTop: 10 }}>
                   <button 
                     className={styles.ackBtn} 
-                    style={{ width: '100%', fontSize: 10 }}
+                    style={{ width: '100%', fontSize: 10, background: 'var(--cyan)', color: '#000', fontWeight: 'bold' }}
                     onClick={() => {
-                      const url = `http://${status.networks[0].gateway}`
-                      if (window.electronAPI) window.electronAPI.openExternal(url)
-                      else window.open(url, '_blank')
+                      const bestUrl = routerInfo?.management_urls?.[0] || `http://${status.networks[0].gateway}`
+                      if (window.electronAPI) window.electronAPI.openExternal(bestUrl)
+                      else window.open(bestUrl, '_blank')
                     }}
                   >
-                    OPEN IN EXTERNAL BROWSER
+                    {routerInfo?.management_urls?.length > 0 ? 'OPEN PRIMARY CONSOLE' : 'OPEN BRIDGE CONSOLE'}
                   </button>
                   <div style={{ fontSize: 7, opacity: 0.5, textAlign: 'center', marginTop: 4 }}>
-                    Opens router settings outside of NetScout
+                    {routerInfo?.management_urls?.length > 0 
+                      ? 'Opens the most likely router interface' 
+                      : 'Opens router settings outside of NetScout'}
                   </div>
                 </div>
               </>
