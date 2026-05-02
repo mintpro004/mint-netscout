@@ -250,17 +250,16 @@ class DeviceRepository:
 
     def upsert_device(self, device_data: dict) -> Device:
         """Insert or update a device by MAC address or IP fallback."""
-        mac = device_data.get("mac", "")
+        mac = device_data.get("mac", "").upper()
         ip = device_data.get("ip", "")
         
         # FIX BE-01: strictly require MAC for device identity in this repository
         if not mac:
             return None
 
-        # Try MAC first, then IP
-        device = None
-        if mac:
-            device = self.db.query(Device).filter_by(mac=mac).first()
+        # Try MAC first
+        device = self.db.query(Device).filter_by(mac=mac).first()
+        
         if not device and ip:
             # If no MAC match, try IP match for devices that also don't have a MAC
             device = self.db.query(Device).filter_by(ip=ip, mac="").first()
@@ -278,25 +277,27 @@ class DeviceRepository:
             
             device.last_seen = time.time()
             device.is_online = True
+            
+            # Update non-manual fields
             device.latency_ms = device_data.get("latency_ms", device.latency_ms)
             device.traffic_in = device_data.get("traffic_in", device.traffic_in)
             device.traffic_out = device_data.get("traffic_out", device.traffic_out)
             
-            if device_data.get("vendor", "Unknown") not in ("Unknown", ""):
+            if device_data.get("vendor") not in ("Unknown", "", None):
                 device.vendor = device_data["vendor"]
-            if device_data.get("device_type", "unknown") not in ("unknown", ""):
+            if device_data.get("device_type") not in ("unknown", "", None):
                 device.device_type = device_data["device_type"]
                 device.device_icon = device_data.get("device_icon", device.device_icon)
             if device_data.get("os_hint"):
                 device.os_hint = device_data["os_hint"]
             
-            # Ensure manual states are NOT changed by discovery
-            # (Keeping existing is_blocked, is_trusted, is_registered)
+            # MANUALLY PRESERVE AND LOG STATE PROTECTION
+            # We do NOT touch is_blocked, is_trusted, is_registered here
         else:
             # Create new
             import json
             device = Device(
-                mac=mac or "",
+                mac=mac,
                 ip=ip or "",
                 hostname=device_data.get("hostname", ""),
                 vendor=device_data.get("vendor", "Unknown"),

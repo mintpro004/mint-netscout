@@ -63,15 +63,16 @@ export function useNetScout() {
   }, [])
 
   const blockDevice = useCallback(async (mac, blocked) => {
+    if (!mac) return { success: false, error: 'No MAC' }
+    const m = mac.toUpperCase()
+    
     // Optimistic update
-    setDevices(p => p.map(d => d.mac === mac ? { ...d, is_blocked: blocked, is_trusted: blocked ? false : d.is_trusted } : d))
+    setDevices(p => p.map(d => d.mac === m ? { ...d, is_blocked: blocked, is_trusted: blocked ? false : d.is_trusted } : d))
     
     try {
-      const res = await api.blockDevice(mac, blocked)
-      if (!res.success) {
-        // Rollback on failure
-        fetchAll()
-      }
+      const res = await api.blockDevice(m, blocked)
+      // Force a re-fetch after a small delay to sync with DB
+      setTimeout(fetchAll, 1000)
       return res
     } catch (e) {
       fetchAll()
@@ -80,14 +81,15 @@ export function useNetScout() {
   }, [fetchAll])
 
   const trustDevice = useCallback(async (mac, trusted) => {
+    if (!mac) return { success: false, error: 'No MAC' }
+    const m = mac.toUpperCase()
+    
     // Optimistic update
-    setDevices(p => p.map(d => d.mac === mac ? { ...d, is_trusted: trusted } : d))
+    setDevices(p => p.map(d => d.mac === m ? { ...d, is_trusted: trusted } : d))
     
     try {
-      const res = await api.trustDevice(mac, trusted)
-      if (!res.success) {
-        fetchAll()
-      }
+      const res = await api.trustDevice(m, trusted)
+      setTimeout(fetchAll, 1000)
       return res
     } catch (e) {
       fetchAll()
