@@ -6,6 +6,7 @@ Advanced logic for identifying, probing, and managing the network gateway.
 
 import logging
 import socket
+import time
 import urllib.request
 import xml.etree.ElementTree as ET
 import concurrent.futures

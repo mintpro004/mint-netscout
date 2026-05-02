@@ -18,6 +18,7 @@ import threading
 import webbrowser
 import time
 from pathlib import Path
+from typing import Dict, List, Optional, Set
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
@@ -180,11 +181,12 @@ def add_device_manual():
 def check_updates():
     """Functional update checker."""
     # Simulate a network delay
-    time.sleep(1.2)
+    time.sleep(0.8)
     return jsonify({
         "current_version": "2.1.0-PRO",
-        "latest_version": "2.1.1-PATCH",
-        "update_available": True,
+        "latest_version": "2.1.0-PRO",
+        "update_available": False,
+        "last_checked": time.time(),
         "changelog": [
             "Enhanced ARP engine for Crostini",
             "Improved traffic monitoring accuracy",
@@ -305,12 +307,39 @@ def investigate_device(mac):
             device.vendor = found.vendor or device.vendor
             device.device_type = found.device_type or device.device_type
             device.os_hint = found.os_hint or device.os_hint
+            
+            # Convert open_ports to JSON for DB storage
+            import json
             device.open_ports = json.dumps(found.open_ports)
             db.commit()
         
+        # Calculate risk summary
+        from backend.modules.port_scanner import OpenPort
+        open_ports_obj = []
+        import json
+        for p in json.loads(device.open_ports or "[]"):
+            if isinstance(p, dict):
+                open_ports_obj.append(OpenPort(
+                    port=p.get('port'), 
+                    service=p.get('service', 'unknown'),
+                    icon=p.get('icon', '🔓'),
+                    risk=p.get('risk', 'unknown'),
+                    banner=p.get('banner', '')
+                ))
+            else:
+                # Fallback for simple int list
+                open_ports_obj.append(OpenPort(port=p, service='unknown', icon='🔓', risk='unknown'))
+
+        risk = PortScanner.risk_summary(open_ports_obj)
+        
         return jsonify({
             "success": True, 
-            "device": device.to_dict()
+            "device": device.to_dict(),
+            "ports": json.loads(device.open_ports),
+            "risk": {
+                "level": risk["overall"],
+                "reason": f"Device has {len(open_ports_obj)} open ports. Highest risk: {risk['overall'].upper()}."
+            }
         })
     except Exception as e:
         logger.error(f"Investigate error: {e}", exc_info=True)

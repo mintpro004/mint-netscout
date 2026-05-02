@@ -200,12 +200,18 @@ export default function Dashboard({
                 </div>
                 <div className={styles.infoRow}>
                   <span className={styles.infoLbl}>Model</span>
-                  <span className={styles.infoVal}>{status.networks[0].gateway === '100.115.92.193' ? 'Crostini Gateway' : 'Analyzing...'}</span>
+                  <span className={styles.infoVal}>{routerInfo?.model || 'Analyzing...'}</span>
+                </div>
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLbl}>Vendor</span>
+                  <span className={styles.infoVal}>{routerInfo?.vendor || 'Analyzing...'}</span>
                 </div>
                 <div className={styles.infoRow}>
                   <span className={styles.infoLbl}>Capabilities</span>
                   <div className={styles.infoVal} style={{ textAlign: 'right', fontSize: 9 }}>
-                    <Tag variant="mint">NAT</Tag> <Tag variant="gold">DHCP</Tag>
+                    {(routerInfo?.capabilities || ['NAT', 'DHCP']).slice(0, 3).map(c => (
+                      <Tag key={c} variant={c.includes('UPnP') ? 'red' : 'mint'}>{c}</Tag>
+                    ))}
                   </div>
                 </div>
                 <div style={{ marginTop: 10 }}>

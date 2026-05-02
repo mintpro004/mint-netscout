@@ -484,70 +484,74 @@ class DiscoveryEngine:
     ) -> List[DiscoveredDevice]:
         """
         Run a full network discovery scan.
-
-        Args:
-            subnet:    CIDR notation (auto-detected if None)
-            interface: Network interface (auto-detected if None)
-            methods:   List of ["arp", "icmp", "mdns"] (all by default)
-            aggressive: Whether to perform deep TCP probing for hidden devices.
-
-        Returns:
-            List of discovered DiscoveredDevice objects
         """
         if methods is None:
             methods = ["arp", "icmp", "mdns", "tcp_stealth"]
 
-        if not subnet or not interface:
+        targets = []
+        if subnet and interface:
+            targets.append({"subnet": subnet, "interface": interface})
+        else:
             nets = get_local_network()
             if not nets: return []
-            subnet = subnet or nets[0]['subnet']
-            interface = interface or nets[0]['interface']
-
-        logger.info(f"🛰️ Initiating discovery on {subnet} ({interface})")
-        has_perms, perm_msg = check_permissions()
+            targets = nets
 
         all_devices: Dict[str, DiscoveredDevice] = {}
-        
+        has_perms, perm_msg = check_permissions()
+
         with self._scan_lock:
             self._scan_running = True
 
-            # ── Phase 1: ARP Sweep ──────────────
-            if "arp" in methods:
-                if has_perms:
-                    arp_scanner = ARPScanner(interface=interface)
-                    arp_devices = arp_scanner.scan(subnet)
-                    for device in arp_devices:
-                        all_devices[device.ip] = device
+            for target in targets:
+                curr_subnet = target['subnet']
+                curr_iface = target['interface']
+                logger.info(f"🛰️ Initiating discovery on {curr_subnet} ({curr_iface})")
 
-                    arp_table = arp_scanner.get_arp_table()
-                    for ip, mac in arp_table.items():
-                        if ip not in all_devices:
-                            all_devices[ip] = DiscoveredDevice(ip=ip, mac=mac, discovery_method="arp_cache")
-                        elif not all_devices[ip].mac:
-                            all_devices[ip].mac = mac
-                else:
-                    logger.warning("Skipping ARP scan (insufficient permissions)")
+                # ── Phase 1: ARP Sweep ──────────────
+                if "arp" in methods:
+                    if has_perms:
+                        arp_scanner = ARPScanner(interface=curr_iface)
+                        arp_devices = arp_scanner.scan(curr_subnet)
+                        for device in arp_devices:
+                            all_devices[device.ip] = device
 
-            # ── Phase 2: ICMP Ping ──────────────────
-            if "icmp" in methods:
-                icmp_scanner = ICMPPinger()
-                icmp_devices = icmp_scanner.scan(subnet)
-                for device in icmp_devices:
-                    if device.ip not in all_devices:
-                        all_devices[device.ip] = device
+                        arp_table = arp_scanner.get_arp_table()
+                        for ip, mac in arp_table.items():
+                            if ip not in all_devices:
+                                # Only add if it belongs to the current subnet
+                                try:
+                                    if ipaddress.IPv4Address(ip) in ipaddress.IPv4Network(curr_subnet):
+                                        all_devices[ip] = DiscoveredDevice(ip=ip, mac=mac, discovery_method="arp_cache")
+                                except: pass
+                            elif not all_devices[ip].mac:
+                                all_devices[ip].mac = mac
                     else:
-                        if device.latency_ms > 0:
-                            all_devices[device.ip].latency_ms = device.latency_ms
+                        logger.warning("Skipping ARP scan (insufficient permissions)")
+
+                # ── Phase 2: ICMP Ping ──────────────────
+                if "icmp" in methods:
+                    icmp_scanner = ICMPPinger()
+                    icmp_devices = icmp_scanner.scan(curr_subnet)
+                    for device in icmp_devices:
+                        if device.ip not in all_devices:
+                            all_devices[device.ip] = device
+                        else:
+                            if device.latency_ms > 0:
+                                all_devices[device.ip].latency_ms = device.latency_ms
 
             # ── Phase 3: Aggressive TCP Probing (Hidden Devices) ────────────────
             if aggressive or "tcp_stealth" in methods:
                 stealth = TCPStealthScanner()
-                network = ipaddress.IPv4Network(subnet, strict=False)
-                unknown_ips = [str(ip) for ip in network.hosts() if str(ip) not in all_devices]
+                # Aggregate all unknown IPs from all scanned subnets
+                all_hosts = []
+                for target in targets:
+                    net = ipaddress.IPv4Network(target['subnet'], strict=False)
+                    all_hosts.extend([str(ip) for ip in net.hosts()])
+                
+                unknown_ips = [ip for ip in all_hosts if ip not in all_devices]
                 
                 if unknown_ips:
                     logger.info(f"Deep scanning {len(unknown_ips)} hidden IPs via TCP...")
-                    # For aggressive mode, we use the full PortScanner for better detection
                     if aggressive:
                         probe_ports = [80, 443, 554, 8554, 9100, 631, 22, 23, 8080, 5000]
                         scanner = PortScanner(timeout=0.5, max_workers=200)

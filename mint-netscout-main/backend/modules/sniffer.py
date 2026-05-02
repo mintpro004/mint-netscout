@@ -11,10 +11,14 @@ Real-time packet sniffing for:
 import logging
 import threading
 import time
+import re
 from scapy.all import sniff, IP, TCP, UDP, DNS, DNSQR, ARP, send, Ether, get_if_hwaddr, get_if_addr
 from backend.database.models import get_db, DeviceRepository
 
 logger = logging.getLogger("netscout.sniffer")
+
+# More robust domain regex
+DOMAIN_REGEX = re.compile(r'([a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}')
 
 class TrafficSniffer:
     def __init__(self, interface: str):
@@ -67,14 +71,14 @@ class TrafficSniffer:
             try:
                 payload = bytes(pkt[TCP].payload)
                 if payload[0] == 0x16: # Handshake
-                    # Very basic extraction: search for common domain suffixes in the payload
-                    # This is a heuristic fallback since full TLS parsing in scapy is heavy
-                    raw_str = payload.decode('ascii', 'ignore')
-                    # Look for things that look like domains
-                    import re
-                    match = re.search(r'([a-z0-9-]+\.)+[a-z]{2,}', raw_str)
+                    # Basic extraction: search for domain patterns in the TLS Handshake payload
+                    raw_str = payload.decode('ascii', 'ignore').lower()
+                    match = DOMAIN_REGEX.search(raw_str)
                     if match:
-                        self._log_visit(src_ip, match.group(0))
+                        domain = match.group(0)
+                        # Filter out common false positives
+                        if len(domain) > 4 and '.' in domain:
+                            self._log_visit(src_ip, domain)
             except: pass
 
         # 3. Traffic Accounting
