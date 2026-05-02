@@ -32,52 +32,57 @@ function createWindow() {
     win.show()
   })
 
-  // IPC handler to open external URLs securely
+  // ── IPC Handlers ───────────────────────────────────────────────────────────
   ipcMain.on('open-external', (event, url) => {
     if (url.startsWith('http')) {
-      console.log(`[IPC] Opening external URL: ${url}`)
-      shell.openExternal(url)
+      console.log(`[IPC-OPEN] ${url}`)
+      shell.openExternal(url).catch(err => console.error(`[IPC-ERR] ${err}`))
     }
   })
 
-  // 🛡️ SECURITY: Prevent the main window from navigating away from the dashboard
+  // ── Navigation & Link Interception ─────────────────────────────────────────
+  
+  // 1. Prevent the main window from navigating away from the dashboard
   win.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith('http://127.0.0.1:5000') && !url.startsWith('http://localhost:5000')) {
+    const isLocal = url.startsWith('http://127.0.0.1:5000') || url.startsWith('http://localhost:5000')
+    if (!isLocal) {
       event.preventDefault()
-      shell.openExternal(url)
+      console.log(`[NAV-BLOCK] Blocked internal jump to: ${url}`)
+      shell.openExternal(url).catch(err => console.error(`[NAV-ERR] ${err}`))
     }
   })
 
-  // Handle new window requests (like the Admin Console button)
+  // 2. Handle window.open and <a target="_blank">
   win.webContents.setWindowOpenHandler(({ url }) => {
-    // Open ANY external URL in the user's default browser
     if (url.startsWith('http')) {
-      console.log(`[EXTERNAL] Opening URL in system browser: ${url}`)
-      shell.openExternal(url)
-      return { action: 'deny' }
+      console.log(`[POPUP-BLOCK] Opening external: ${url}`)
+      shell.openExternal(url).catch(err => console.error(`[POPUP-ERR] ${err}`))
+      return { action: 'deny' } // Stop Electron from opening a blank window
     }
     return { action: 'allow' }
   })
 
-  // Capture ALL logs to stdout
-  win.webContents.on('console-message', (event, ...args) => {
-    const details = args[0]
-    const message = (typeof details === 'object' && details !== null) ? details.message : args[1]
-    if (message) console.log(`[RENDERER] ${message}`)
+  // ── Logging & Errors ───────────────────────────────────────────────────────
+  
+  // Bulletproof log capture
+  win.webContents.on('console-message', (event, level, message) => {
+    const msg = (typeof level === 'object' && level !== null) ? level.message : message
+    if (msg) console.log(`[RENDERER] ${msg}`)
   })
 
-  win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-    console.error(`[ERROR] Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`)
+  win.webContents.on('did-fail-load', (event, code, desc, url) => {
+    if (url.includes('favicon')) return
+    console.error(`[FAIL-LOAD] ${url}: ${desc} (${code})`)
   })
 
   win.webContents.on('render-process-gone', (event, details) => {
     console.error(`[CRASH] Renderer: ${details.reason} (${details.exitCode})`)
   })
 
-  // Load backend with retry - Use 127.0.0.1
+  // ── Load Backend ───────────────────────────────────────────────────────────
   const loadURL = () => {
     win.loadURL('http://127.0.0.1:5000').catch(err => {
-      console.log(`[RETRY] Backend not ready, waiting...`)
+      console.log(`[RETRY] Backend not ready (Error: ${err.code}), waiting...`)
       setTimeout(loadURL, 2000)
     })
   }
