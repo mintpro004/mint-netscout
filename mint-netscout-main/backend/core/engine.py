@@ -481,11 +481,16 @@ class DiscoveryEngine:
         subnet: Optional[str] = None,
         interface: Optional[str] = None,
         methods: List[str] = None,
-        aggressive: bool = False
+        aggressive: bool = False,
+        progress_cb: Optional[Callable[[str], None]] = None
     ) -> List[DiscoveredDevice]:
         """
         Run a full network discovery scan.
         """
+        def report(msg):
+            if progress_cb: progress_cb(msg)
+            logger.info(msg)
+
         if methods is None:
             methods = ["arp", "icmp", "mdns", "tcp_stealth"]
 
@@ -494,7 +499,9 @@ class DiscoveryEngine:
             targets.append({"subnet": subnet, "interface": interface})
         else:
             nets = get_local_network()
-            if not nets: return []
+            if not nets: 
+                report("⚠️  No suitable network interfaces found for scanning.")
+                return []
             targets = nets
 
         all_devices: Dict[str, DiscoveredDevice] = {}
@@ -502,7 +509,7 @@ class DiscoveryEngine:
         primary_iface = interface or (targets[0]['interface'] if targets else None)
 
         if not has_perms:
-            logger.warning(f"⚠️  PRIVILEGE WARNING: {perm_msg}. Falling back to ICMP-only discovery.")
+            report(f"⚠️  PRIVILEGE WARNING: {perm_msg}. Falling back to ICMP-only discovery.")
 
         with self._scan_lock:
             self._scan_running = True
@@ -510,11 +517,12 @@ class DiscoveryEngine:
             for target in targets:
                 curr_subnet = target['subnet']
                 curr_iface = target['interface']
-                logger.info(f"🛰️ Initiating discovery on {curr_subnet} ({curr_iface})")
+                report(f"🛰️  Initiating discovery on {curr_subnet} ({curr_iface})...")
 
                 # ── Phase 1: ARP Sweep ──────────────
                 if "arp" in methods:
                     if has_perms:
+                        report(f"📡  Running ARP sweep on {curr_subnet}...")
                         arp_scanner = ARPScanner(interface=curr_iface)
                         arp_devices = arp_scanner.scan(curr_subnet)
                         for device in arp_devices:
@@ -530,10 +538,11 @@ class DiscoveryEngine:
                             elif not all_devices[ip].mac:
                                 all_devices[ip].mac = mac
                     else:
-                        logger.warning("Skipping ARP scan (insufficient permissions)")
+                        report("Skipping ARP scan (insufficient permissions)")
 
                 # ── Phase 2: ICMP Ping ──────────────────
                 if "icmp" in methods:
+                    report(f"📡  Running ICMP sweep on {curr_subnet}...")
                     icmp_scanner = ICMPPinger()
                     icmp_devices = icmp_scanner.scan(curr_subnet)
                     for device in icmp_devices:
@@ -554,7 +563,7 @@ class DiscoveryEngine:
                 unknown_ips = [ip for ip in all_hosts if ip not in all_devices]
                 
                 if unknown_ips:
-                    logger.info(f"Deep scanning {len(unknown_ips)} IPs via TCP/UDP...")
+                    report(f"🔍  Deep scanning {len(unknown_ips)} candidate IPs...")
                     
                     if aggressive:
                         self._stealth_udp_probe(unknown_ips, primary_iface)
@@ -581,36 +590,39 @@ class DiscoveryEngine:
                                 if dev: all_devices[dev.ip] = dev
 
             # ── Phase 4: Hostname Resolution ─────────────────────────────────────
-            if "mdns" in methods:
+            if "mdns" in methods and all_devices:
                 device_list = list(all_devices.values())
-                logger.info(f"Resolving hostnames for {len(device_list)} devices...")
+                report(f"🏷️  Resolving hostnames for {len(device_list)} devices...")
                 self.mdns.batch_resolve(device_list)
 
             # ── Phase 5: Deep Fingerprinting ─────────────────────────────────────
-            for d in all_devices.values():
-                ports = []
-                try:
-                    if d.open_ports:
-                        first = d.open_ports[0]
-                        ports = [p['port'] for p in d.open_ports] if isinstance(first, dict) else list(d.open_ports)
-                except (IndexError, KeyError, TypeError):
+            if all_devices:
+                report(f"🧬  Fingerprinting {len(all_devices)} devices...")
+                for d in all_devices.values():
                     ports = []
+                    try:
+                        if d.open_ports:
+                            first = d.open_ports[0]
+                            ports = [p['port'] for p in d.open_ports] if isinstance(first, dict) else list(d.open_ports)
+                    except (IndexError, KeyError, TypeError):
+                        ports = []
 
-                try:
-                    fp = self.fingerprinter.fingerprint(
-                        mac=d.mac, hostname=d.hostname, ttl=d.ttl, open_ports=ports
-                    )
-                    d.vendor = fp.vendor
-                    d.device_type = fp.device_type
-                    d.os_hint = fp.os_hint
-                    d.arch_hint = fp.arch_hint
-                    d.device_icon = fp.to_dict().get("device_icon", "❓")
-                except Exception as fp_err:
-                    logger.debug(f"Fingerprint failed for {d.ip}: {fp_err}")
+                    try:
+                        fp = self.fingerprinter.fingerprint(
+                            mac=d.mac, hostname=d.hostname, ttl=d.ttl, open_ports=ports
+                        )
+                        d.vendor = fp.vendor
+                        d.device_type = fp.device_type
+                        d.os_hint = fp.os_hint
+                        d.arch_hint = fp.arch_hint
+                        d.device_icon = fp.to_dict().get("device_icon", "❓")
+                    except Exception as fp_err:
+                        logger.debug(f"Fingerprint failed for {d.ip}: {fp_err}")
 
             self._scan_running = False
 
         # ── Phase 6: Result Compilation ────────────────────
+        report(f"✅  Scan complete. Found {len(all_devices)} online assets.")
         result = []
         for ip, device in all_devices.items():
             device.last_seen = time.time()

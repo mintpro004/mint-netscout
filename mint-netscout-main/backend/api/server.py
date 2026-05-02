@@ -163,7 +163,7 @@ def add_security_headers(response):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com;"
+    response.headers["Content-Security-Policy"] = "default-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; connect-src 'self' ws: http:; img-src 'self' data: blob:;"
     return response
 
 @app.route("/api/router", methods=["GET"])
@@ -437,19 +437,25 @@ def trigger_scan_api():
     aggressive = data.get("aggressive", False)
     
     def run_scan():
-        msg = "Aggressive Deep Discovery started..." if aggressive else "Standard Discovery started..."
-        socketio.emit("scan_progress", {"status": "scanning", "message": msg})
+        def progress(msg):
+            socketio.emit("scan_progress", {"status": "scanning", "message": msg})
+
+        progress("Aggressive Deep Discovery started..." if aggressive else "Standard Discovery started...")
         try:
             networks = get_local_network()
-            if not networks: return
+            if not networks: 
+                progress("⚠️  Discovery aborted: No network interfaces detected.")
+                return
+            
             primary = networks[0]
             engine = DiscoveryEngine()
             
-            # Using the new engine scan with aggressive support
+            # Using the new engine scan with aggressive and progress support
             devices = engine.scan_network(
                 subnet=subnet or primary["subnet"], 
                 interface=primary["interface"],
-                aggressive=aggressive
+                aggressive=aggressive,
+                progress_cb=progress
             )
             
             db = get_db()
@@ -618,6 +624,26 @@ def start_background_tasks():
                 db.close()
         
         sniffer.log_callback = log_sniffer_visit
+        
+        def log_sniffer_traffic(stats):
+            """Flush accumulated byte counts to the database."""
+            db = get_db()
+            try:
+                for ip, data in stats.items():
+                    device = db.query(Device).filter_by(ip=ip).first()
+                    if device:
+                        # Convert bytes to MB
+                        in_mb = data['in'] / (1024 * 1024)
+                        out_mb = data['out'] / (1024 * 1024)
+                        device.traffic_in = (device.traffic_in or 0.0) + in_mb
+                        device.traffic_out = (device.traffic_out or 0.0) + out_mb
+                db.commit()
+            except Exception as e:
+                logger.error(f"Traffic DB flush error: {e}")
+            finally:
+                db.close()
+        
+        sniffer.traffic_callback = log_sniffer_traffic
         sniffer.start()
         _sync_sniffer_blocking()
 

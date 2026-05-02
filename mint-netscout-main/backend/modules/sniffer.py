@@ -27,6 +27,8 @@ class TrafficSniffer:
         self._thread = None
         self._block_list = set()  # MACs to block via ARP spoofing
         self._spoof_thread = None
+        self._traffic_stats = {} # {ip: {'in': 0, 'out': 0}}
+        self._stats_lock = threading.Lock()
 
     def start(self):
         if self._running: return
@@ -36,6 +38,11 @@ class TrafficSniffer:
         
         self._spoof_thread = threading.Thread(target=self._spoof_loop, daemon=True)
         self._spoof_thread.start()
+
+        # Stats flusher thread
+        self._flush_thread = threading.Thread(target=self._flush_stats_loop, daemon=True)
+        self._flush_thread.start()
+
         logger.info(f"Traffic Sniffer & Spoof-Blocker started on {self.interface}")
 
     def stop(self):
@@ -57,39 +64,57 @@ class TrafficSniffer:
         
         src_ip = pkt[IP].src
         dst_ip = pkt[IP].dst
+        pkt_len = len(pkt)
         
-        # 1. DNS Extraction
+        # 1. Traffic Accounting
+        with self._stats_lock:
+            # Stats for SOURCE (Traffic OUT from this device)
+            if src_ip not in self._traffic_stats: self._traffic_stats[src_ip] = {'in': 0, 'out': 0}
+            self._traffic_stats[src_ip]['out'] += pkt_len
+            
+            # Stats for DESTINATION (Traffic IN to this device)
+            if dst_ip not in self._traffic_stats: self._traffic_stats[dst_ip] = {'in': 0, 'out': 0}
+            self._traffic_stats[dst_ip]['in'] += pkt_len
+
+        # 2. DNS Extraction
         if pkt.haslayer(DNS) and pkt.getlayer(DNS).qr == 0:
             try:
                 domain = pkt.getlayer(DNSQR).qname.decode().rstrip('.')
                 self._log_visit(src_ip, domain)
             except: pass
 
-        # 2. TLS SNI Extraction (Simple check for common patterns)
-        # Most modern TLS ClientHello starts with \x16\x03\x01 or \x16\x03\x03
+        # 3. TLS SNI Extraction
         if pkt.haslayer(TCP) and pkt[TCP].dport == 443 and len(pkt[TCP].payload) > 100:
             try:
                 payload = bytes(pkt[TCP].payload)
                 if payload[0] == 0x16: # Handshake
-                    # Basic extraction: search for domain patterns in the TLS Handshake payload
                     raw_str = payload.decode('ascii', 'ignore').lower()
                     match = DOMAIN_REGEX.search(raw_str)
                     if match:
                         domain = match.group(0)
-                        # Filter out common false positives
                         if len(domain) > 4 and '.' in domain:
                             self._log_visit(src_ip, domain)
             except: pass
 
-        # 3. Traffic Accounting
-        # (This is simplified; a real impl would batch updates)
-        # For now, we just skip frequent DB writes here and rely on the monitor for volume trends
-
     def _log_visit(self, ip: str, domain: str):
-        # This will be handled by the server/monitor callbacks
-        # We need to find the MAC for this IP
         if hasattr(self, 'log_callback') and self.log_callback:
             self.log_callback(ip, domain)
+
+    def _flush_stats_loop(self):
+        """Periodically flushes accumulated traffic stats to the DB via callback."""
+        while self._running:
+            time.sleep(10) # Flush every 10 seconds
+            
+            stats_to_flush = {}
+            with self._stats_lock:
+                stats_to_flush = self._traffic_stats
+                self._traffic_stats = {} # Clear for next cycle
+            
+            if stats_to_flush and hasattr(self, 'traffic_callback') and self.traffic_callback:
+                try:
+                    self.traffic_callback(stats_to_flush)
+                except Exception as e:
+                    logger.error(f"Traffic flush error: {e}")
 
     def _spoof_loop(self):
         """Continuously ARP spoof blocked devices to redirect their traffic to us (and then drop it)."""

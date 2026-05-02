@@ -90,7 +90,7 @@ export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 # Check if we need to wrap in dbus-run-session
 if command -v dbus-run-session >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
     echo "[*] Wrapping Electron in dbus-run-session..."
-    dbus-run-session -- npm run gui -- --no-sandbox
+    dbus-run-session -- npm run gui
 else
-    npm run gui -- --no-sandbox
+    npm run gui
 fi

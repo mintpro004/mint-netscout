@@ -4,10 +4,7 @@ const path = require('path')
 // DO NOT disable hardware acceleration yet — let Electron decide
 // app.disableHardwareAcceleration() 
 
-// Essential compatibility switches
-app.commandLine.appendSwitch('no-sandbox')
-app.commandLine.appendSwitch('disable-setuid-sandbox')
-app.commandLine.appendSwitch('disable-gpu-sandbox')
+// Essential compatibility switches (Removed no-sandbox per user request)
 app.commandLine.appendSwitch('ozone-platform', 'x11')
 
 function createWindow() {
@@ -19,13 +16,14 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true, // Enabled sandbox
       preload: path.join(__dirname, 'preload.cjs'),
     },
   })
 
   // Capture ALL logs to stdout
-  win.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    console.log(`[RENDERER] ${message}`)
+  win.webContents.on('console-message', (event, details) => {
+    console.log(`[RENDERER] ${details.message}`)
   })
 
   win.webContents.on('render-process-gone', (event, details) => {
