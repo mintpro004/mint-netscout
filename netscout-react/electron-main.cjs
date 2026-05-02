@@ -1,5 +1,8 @@
-const { app, BrowserWindow, ipcMain, nativeTheme } = require('electron')
+const { app, BrowserWindow, ipcMain, nativeTheme, shell } = require('electron')
 const path = require('path')
+
+// Force software rendering - essential for stability in many VM/Crostini environments
+app.disableHardwareAcceleration()
 
 // Essential compatibility switches for Linux/Crostini stability
 app.commandLine.appendSwitch('no-sandbox')
@@ -7,11 +10,10 @@ app.commandLine.appendSwitch('disable-setuid-sandbox')
 app.commandLine.appendSwitch('disable-gpu-sandbox')
 app.commandLine.appendSwitch('disable-namespace-sandbox')
 app.commandLine.appendSwitch('no-zygote')
-app.commandLine.appendSwitch('disable-dev-shm-usage') // Fixes /dev/shm permission issues
-app.commandLine.appendSwitch('ozone-platform', 'x11')
-app.commandLine.appendSwitch('disable-gpu') // Force software rendering for stability in VMs
+app.commandLine.appendSwitch('disable-dev-shm-usage') 
+app.commandLine.appendSwitch('disable-gpu')
 app.commandLine.appendSwitch('disable-software-rasterizer')
-app.commandLine.appendSwitch('disable-accelerated-2d-canvas')
+app.commandLine.appendSwitch('ozone-platform', 'x11')
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -19,31 +21,49 @@ function createWindow() {
     height: 800,
     title: "Mint NetScout SIGINT PRO",
     backgroundColor: '#0a0f14', 
+    show: false, // Don't show until ready-to-show
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false, // Disabled for Linux/Crostini stability
+      sandbox: false,
       preload: path.join(__dirname, 'preload.cjs'),
     },
   })
 
-  // Capture ALL logs to stdout - robust handler for different Electron versions
+  win.once('ready-to-show', () => {
+    win.show()
+  })
+
+  // Handle new window requests (like the Admin Console button)
+  // This prevents the main window from navigating or opening blank windows
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    // Open external URLs (like the router admin) in the user's default browser
+    if (url.startsWith('http')) {
+      shell.openExternal(url)
+      return { action: 'deny' }
+    }
+    return { action: 'allow' }
+  })
+
+  // Capture ALL logs to stdout
   win.webContents.on('console-message', (event, ...args) => {
-    // args[0] is level, args[1] is message in older versions
-    // in newer versions, args[0] is the details object
     const details = args[0]
     const message = (typeof details === 'object' && details !== null) ? details.message : args[1]
     if (message) console.log(`[RENDERER] ${message}`)
+  })
+
+  win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[ERROR] Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`)
   })
 
   win.webContents.on('render-process-gone', (event, details) => {
     console.error(`[CRASH] Renderer: ${details.reason} (${details.exitCode})`)
   })
 
-  // Load backend with retry - Use 127.0.0.1 to avoid DNS resolution issues
+  // Load backend with retry - Use 127.0.0.1
   const loadURL = () => {
     win.loadURL('http://127.0.0.1:5000').catch(err => {
-      console.log(`[RETRY] Backend not ready (Error: ${err.code}), waiting...`)
+      console.log(`[RETRY] Backend not ready, waiting...`)
       setTimeout(loadURL, 2000)
     })
   }
