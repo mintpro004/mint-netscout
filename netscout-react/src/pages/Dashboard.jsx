@@ -272,7 +272,11 @@ export default function Dashboard({
                   <button 
                     className={styles.ackBtn} 
                     style={{ width: '100%', fontSize: 10 }}
-                    onClick={() => window.open(`http://${status.networks[0].gateway}`, '_blank')}
+                    onClick={() => {
+                      const url = `http://${status.networks[0].gateway}`
+                      if (window.electronAPI) window.electronAPI.openExternal(url)
+                      else window.open(url, '_blank')
+                    }}
                   >
                     OPEN IN EXTERNAL BROWSER
                   </button>

@@ -173,14 +173,16 @@ export function Network({ status }) {
                     <span className={styles.netVal}>
                       {v}
                       {k === 'Gateway' && v !== '—' && (
-                        <a 
-                          href={`http://${v}`} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          style={{ marginLeft: 10, fontSize: '0.8em', color: '#00ffaa', textDecoration: 'underline' }}
+                        <span 
+                          onClick={() => {
+                            const url = `http://${v}`
+                            if (window.electronAPI) window.electronAPI.openExternal(url)
+                            else window.open(url, '_blank')
+                          }}
+                          style={{ marginLeft: 10, fontSize: '0.8em', color: '#00ffaa', textDecoration: 'underline', cursor: 'pointer' }}
                         >
                           [OPEN ADMIN]
-                        </a>
+                        </span>
                       )}
                     </span>
                   </div>

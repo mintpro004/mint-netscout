@@ -55,7 +55,16 @@ class TrafficSniffer:
 
     def _sniff_loop(self):
         try:
-            sniff(iface=self.interface, prn=self._handle_packet, store=0, stop_filter=lambda x: not self._running)
+            # Optimized BPF filter: Only capture DNS, TLS (SNI), and ARP
+            # This drastically reduces CPU load in busy network environments
+            bpf_filter = "udp port 53 or tcp port 443 or arp"
+            sniff(
+                iface=self.interface, 
+                prn=self._handle_packet, 
+                store=0, 
+                stop_filter=lambda x: not self._running,
+                filter=bpf_filter
+            )
         except Exception as e:
             logger.error(f"Sniffer error: {e}")
 

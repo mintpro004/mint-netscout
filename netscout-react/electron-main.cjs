@@ -32,6 +32,14 @@ function createWindow() {
     win.show()
   })
 
+  // IPC handler to open external URLs securely
+  ipcMain.on('open-external', (event, url) => {
+    if (url.startsWith('http')) {
+      console.log(`[IPC] Opening external URL: ${url}`)
+      shell.openExternal(url)
+    }
+  })
+
   // 🛡️ SECURITY: Prevent the main window from navigating away from the dashboard
   win.webContents.on('will-navigate', (event, url) => {
     if (!url.startsWith('http://127.0.0.1:5000') && !url.startsWith('http://localhost:5000')) {
