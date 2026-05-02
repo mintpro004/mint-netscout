@@ -179,20 +179,45 @@ def add_device_manual():
 
 @app.route("/api/update/check", methods=["GET"])
 def check_updates():
-    """Functional update checker."""
-    # Simulate a network delay
-    time.sleep(0.8)
-    return jsonify({
-        "current_version": "2.1.0-PRO",
-        "latest_version": "2.1.0-PRO",
-        "update_available": False,
-        "last_checked": time.time(),
-        "changelog": [
-            "Enhanced ARP engine for Crostini",
-            "Improved traffic monitoring accuracy",
-            "Security hardening for SocketIO"
-        ]
-    })
+    """Real GitHub-based update checker."""
+    import subprocess
+    repo_url = "https://api.github.com/repos/mintpro004/mint-netscout/commits/main"
+    current_version = "2.1.0-PRO"
+    
+    try:
+        # Check if we are in a git repo to get local hash
+        local_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        
+        # Query GitHub for the latest commit on main
+        import urllib.request
+        req = urllib.request.Request(repo_url, headers={"User-Agent": "NetScout-Updater"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+            remote_hash = data.get("sha", "")
+            
+            update_available = local_hash != remote_hash
+            
+            return jsonify({
+                "current_version": current_version,
+                "latest_version": f"REV-{remote_hash[:7]}",
+                "update_available": update_available,
+                "local_sha": local_hash[:7],
+                "remote_sha": remote_hash[:7],
+                "last_checked": time.time(),
+                "changelog": [
+                    data.get("commit", {}).get("message", "New updates available on GitHub")
+                ]
+            })
+    except Exception as e:
+        logger.error(f"Update check failed: {e}")
+        # Fallback to current state if offline or error
+        return jsonify({
+            "current_version": current_version,
+            "latest_version": current_version,
+            "update_available": False,
+            "error": "Could not contact update server",
+            "last_checked": time.time()
+        })
 
 @app.route("/api/devices", methods=["GET"])
 def get_devices():
