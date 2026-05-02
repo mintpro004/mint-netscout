@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+import random
 import socket
 import struct
 import subprocess
@@ -497,7 +498,8 @@ class DiscoveryEngine:
             targets = nets
 
         all_devices: Dict[str, DiscoveredDevice] = {}
-        has_perms, perm_msg = check_permissions()
+        has_perms, _ = check_permissions()
+        primary_iface = interface or (targets[0]['interface'] if targets else None)
 
         with self._scan_lock:
             self._scan_running = True
@@ -518,7 +520,6 @@ class DiscoveryEngine:
                         arp_table = arp_scanner.get_arp_table()
                         for ip, mac in arp_table.items():
                             if ip not in all_devices:
-                                # Only add if it belongs to the current subnet
                                 try:
                                     if ipaddress.IPv4Address(ip) in ipaddress.IPv4Network(curr_subnet):
                                         all_devices[ip] = DiscoveredDevice(ip=ip, mac=mac, discovery_method="arp_cache")
@@ -539,10 +540,9 @@ class DiscoveryEngine:
                             if device.latency_ms > 0:
                                 all_devices[device.ip].latency_ms = device.latency_ms
 
-            # ── Phase 3: Aggressive TCP Probing (Hidden Devices) ────────────────
+            # ── Phase 3: Aggressive TCP/UDP Probing (Hidden Devices) ────────────────
             if aggressive or "tcp_stealth" in methods:
                 stealth = TCPStealthScanner()
-                # Aggregate all unknown IPs from all scanned subnets
                 all_hosts = []
                 for target in targets:
                     net = ipaddress.IPv4Network(target['subnet'], strict=False)
@@ -551,16 +551,16 @@ class DiscoveryEngine:
                 unknown_ips = [ip for ip in all_hosts if ip not in all_devices]
                 
                 if unknown_ips:
-                    logger.info(f"Deep scanning {len(unknown_ips)} IPs via TCP...")
+                    logger.info(f"Deep scanning {len(unknown_ips)} IPs via TCP/UDP...")
+                    
                     if aggressive:
-                        # BRUTE FORCE: Scan top 1000 ports in aggressive mode
-                        # This is the "Aggressive" retrieve request
+                        self._stealth_udp_probe(unknown_ips, primary_iface)
+                        
+                        # BRUTE FORCE: Scan top ports
                         probe_ports = [
-                            21, 22, 23, 25, 53, 80, 110, 111, 135, 139, 143, 443, 445, 993, 995, 
-                            1723, 3306, 3389, 5900, 8080, 5000, 8443, 8888, 9100, 27017
+                            21, 22, 23, 25, 53, 80, 110, 111, 135, 137, 139, 143, 443, 445, 993, 995, 
+                            1723, 3306, 3389, 5000, 5900, 8080, 8443, 8888, 9100, 27017
                         ]
-                        # Plus generic discovery ports
-                        probe_ports += list(range(1000, 1050)) 
                         
                         scanner = PortScanner(timeout=0.3, max_workers=500)
                         probe_results = scanner.scan_network_ports(unknown_ips, ports=probe_ports, mode="custom")
@@ -569,7 +569,6 @@ class DiscoveryEngine:
                                 if ip not in all_devices:
                                     all_devices[ip] = DiscoveredDevice(ip=ip, discovery_method="tcp_aggressive")
                                 all_devices[ip].open_ports = [p.to_dict() for p in open_ports]
-                                # If we found open ports, the host is definitely online
                                 all_devices[ip].last_seen = time.time()
                     else:
                         with ThreadPoolExecutor(max_workers=100) as executor:
@@ -577,14 +576,6 @@ class DiscoveryEngine:
                             for future in as_completed(futures):
                                 dev = future.result()
                                 if dev: all_devices[dev.ip] = dev
-
-            # Attempt to resolve missing MACs for found IPs via ARP cache again
-            if has_perms:
-                arp_scanner = ARPScanner(interface=interface)
-                arp_table = arp_scanner.get_arp_table()
-                for ip, dev in all_devices.items():
-                    if not dev.mac and ip in arp_table:
-                        dev.mac = arp_table[ip]
 
             # ── Phase 4: Hostname Resolution ─────────────────────────────────────
             if "mdns" in methods:
@@ -594,7 +585,6 @@ class DiscoveryEngine:
 
             # ── Phase 5: Deep Fingerprinting ─────────────────────────────────────
             for d in all_devices.values():
-                # FIX BE-01: safe port extraction — open_ports is now a proper field
                 ports = []
                 try:
                     if d.open_ports:
@@ -607,7 +597,6 @@ class DiscoveryEngine:
                     fp = self.fingerprinter.fingerprint(
                         mac=d.mac, hostname=d.hostname, ttl=d.ttl, open_ports=ports
                     )
-                    # Fields now exist on dataclass — safe to set directly
                     d.vendor = fp.vendor
                     d.device_type = fp.device_type
                     d.os_hint = fp.os_hint
@@ -629,6 +618,17 @@ class DiscoveryEngine:
             result.append(device)
 
         return result
+
+    def _stealth_udp_probe(self, ips: List[str], interface: Optional[str]):
+        """Sends empty UDP packets to high ports to trigger ICMP responses."""
+        from scapy.all import IP, UDP, send
+        logger.info(f"Initiating stealth UDP probe on {len(ips)} IPs...")
+        for ip in ips:
+            try:
+                # Send to a port unlikely to be open to trigger ICMP port unreachable
+                pkt = IP(dst=ip)/UDP(dport=random.randint(33434, 33534))
+                send(pkt, iface=interface, verbose=False, count=1)
+            except: pass
 
     def get_known_devices(self) -> List[DiscoveredDevice]:
         """Return all previously discovered devices."""

@@ -48,6 +48,9 @@ function createWindow() {
   win.on('closed', () => {
     app.quit()
   })
+
+  // Load the local Flask server
+  win.loadURL('http://localhost:5000')
 }
 
 app.whenReady().then(() => {

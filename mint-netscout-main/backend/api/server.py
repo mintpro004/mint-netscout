@@ -532,14 +532,32 @@ def start_background_tasks():
             try:
                 repo = DeviceRepository(db)
                 dev = repo.get_by_ip(ip)
+                
+                # If device is unknown, create a placeholder so we can log traffic
+                if not dev:
+                    logger.info(f"🆕 Traffic from unknown IP {ip}: Creating placeholder.")
+                    repo.upsert_device({
+                        "ip": ip,
+                        "mac": "", # Will be filled by ARP monitor later
+                        "hostname": "Unknown Asset",
+                        "vendor": "Pending Discovery",
+                        "device_type": "unknown"
+                    })
+                    dev = repo.get_by_ip(ip)
+                
                 if dev:
-                    is_malicious = repo.log_visit(dev.mac, domain)
+                    # Log the visit (linked via MAC or IP stub)
+                    mac_to_use = dev.mac or f"STUB:{dev.ip}"
+                    is_malicious = repo.log_visit(mac_to_use, domain)
+                    
                     if is_malicious:
                         emit_alert(NetworkAlert(
                             "threat_detected", 
                             message=f"THREAT: Device {dev.hostname or dev.ip} contacted known malicious domain: {domain}",
                             device_ip=dev.ip, device_mac=dev.mac
                         ))
+            except Exception as e:
+                logger.error(f"Traffic logging error: {e}")
             finally:
                 db.close()
         

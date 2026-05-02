@@ -404,7 +404,13 @@ class DeviceRepository:
         }
     
     def log_visit(self, mac: str, domain: str):
-        device = self.get_by_mac(mac)
+        # Handle STUB MACs for unknown devices
+        if mac.startswith("STUB:"):
+            ip = mac.split(":")[1]
+            device = self.get_by_ip(ip)
+        else:
+            device = self.get_by_mac(mac)
+            
         if not device: return
         
         intel = self.db.query(SiteIntelligence).filter_by(domain=domain).first()
