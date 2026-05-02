@@ -29,6 +29,19 @@ export default function App() {
   const [updateInfo,  setUpdateInfo]  = useState(null)
   const [updLoading,  setUpdLoading]  = useState(false)
   const [settings,    setSettings]    = useState({ animations: true, stealth: true, interval: '30' })
+  const [isDark,      setIsDark]      = useState(true)
+
+  const toggleTheme = () => {
+    const next = !isDark
+    setIsDark(next)
+    if (next) document.body.classList.remove('light-mode')
+    else document.body.classList.add('light-mode')
+    
+    // Optional: Tell Electron to sync native theme
+    if (window.electronAPI?.toggleDarkMode) {
+      window.electronAPI.toggleDarkMode()
+    }
+  }
 
   // ── Wrapped actions with consistent toast feedback ─────────────────────────
   const handleSelectDevice = (mac) => {
@@ -150,6 +163,8 @@ export default function App() {
           view={view}
           setView={setView}
           connected={connected}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
           threatCount={unsafe.length}
           alertCount={unacked.length}
           hiddenCount={hidden.length}

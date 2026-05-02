@@ -12,6 +12,7 @@ const NAV = [
 export default function Sidebar({
   view, setView,
   connected,
+  isDark, onToggleTheme,
   threatCount, alertCount, hiddenCount,
   onAddDevice, onCheckUpdates, onClearHidden, onExit,
   updLoading,
@@ -39,6 +40,10 @@ export default function Sidebar({
       ))}
 
       <div className={styles.sectionLabel}>System Tools</div>
+      <div className={styles.navItem} onClick={onToggleTheme}>
+        <span className={styles.glyph}>{isDark ? '☀' : '🌙'}</span> 
+        {isDark ? 'Light Mode' : 'Dark Mode'}
+      </div>
       <div className={styles.navItem} onClick={onAddDevice}>
         <span className={styles.glyph}>✚</span> Add Asset
       </div>

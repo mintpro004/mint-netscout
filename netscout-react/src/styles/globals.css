@@ -1,7 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Share+Tech+Mono&family=Exo+2:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap');
 
 :root {
-  /* Palette */
+  /* Transition for theme smoothness */
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+
+  /* Palette - Dark (Default) */
   --void:    #020408;
   --abyss:   #040810;
   --surface: #081420;
@@ -42,6 +45,38 @@
   --ease2: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+body.light-mode {
+  --void:    #f4f7fa;
+  --abyss:   #ffffff;
+  --surface: #ffffff;
+  --raised:  #e1e8f0;
+  --glass:   rgba(255,255,255,0.9);
+
+  /* Subdued Accents for Light Mode */
+  --mint:    #00a870;
+  --mint-d:  rgba(0,168,112,0.08);
+  --mint-g:  rgba(0,168,112,0.15);
+  --mint-dim:#008c5e;
+  --cyan:    #0088cc;
+  --cyan-d:  rgba(0,136,204,0.06);
+  --gold:    #b28900;
+  --gold-d:  rgba(178,137,0,0.08);
+  --red:     #d32f2f;
+  --red-d:   rgba(211,47,47,0.06);
+  --purple:  #7b1fa2;
+
+  /* Borders */
+  --b1: rgba(0,0,0,0.04);
+  --b2: rgba(0,0,0,0.1);
+  --b3: rgba(0,0,0,0.25);
+
+  /* Text */
+  --t0: #1a202c;
+  --t1: #2d3748;
+  --t2: #4a5568;
+  --t3: #a0aec0;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, #root {
@@ -52,6 +87,7 @@ html, body, #root {
   font-family: var(--f-body);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.4s var(--ease), color 0.4s var(--ease);
 }
 
 ::-webkit-scrollbar { width: 3px; height: 3px; }

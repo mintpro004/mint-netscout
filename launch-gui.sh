@@ -89,6 +89,11 @@ export ELECTRON_DISABLE_GPU=1
 export DISPLAY=${DISPLAY:-:0}
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 
+# Chrome/Electron Stability Flags
+export CHROME_DEVEL_CONFIG=1
+export LIBGL_ALWAYS_SOFTWARE=1
+export MESA_LOADER_DRIVER_OVERRIDE=swrast
+
 # Check if we need to wrap in dbus-run-session
 if command -v dbus-run-session >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
     echo "[*] Wrapping Electron in dbus-run-session..."
