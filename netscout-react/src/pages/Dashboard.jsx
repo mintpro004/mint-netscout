@@ -78,7 +78,7 @@ function ChartTip({ active, payload }) {
 
 /* ── Dashboard ───────────────────────────────────────────────────────────── */
 export default function Dashboard({
-  visible, online, trusted, unsafe, alerts, status,
+  visible, online, trusted, unsafe, alerts, status, routerInfo,
   scanning, hiddenMacs, onSelectDevice, onAck
 }) {
   const latData = useMemo(() =>

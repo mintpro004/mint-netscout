@@ -82,37 +82,15 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 # Compatibility env vars for Chromebook/Crostini
-# KILL WAYLAND: This is the critical fix for the DRM errors
 unset WAYLAND_DISPLAY
 export XDG_SESSION_TYPE=x11
-export GDK_BACKEND=x11
-export ELECTRON_DISABLE_GPU=1
-export ELECTRON_OZONE_PLATFORM_HINT=x11
 export DISPLAY=${DISPLAY:-:0}
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-
-# Ultimate Stability: Force pure software stack
-export CHROME_DEVEL_CONFIG=1
-export LIBGL_ALWAYS_SOFTWARE=1
-export MESA_LOADER_DRIVER_OVERRIDE=swrast
-export NO_AT_BRIDGE=1
-export GALLIUM_DRIVER=llvmpipe
-export GSK_RENDERER=cairo
-export QT_X11_NO_MITSHM=1
-export _X11_NO_MITSHM=1
-
-# Clean Boot: Clear stale Electron caches and temporary memory segments
-echo "[*] Optimizing system for Fast Boot..."
-rm -rf "$HOME/.config/Electron/Cache"/* 2>/dev/null || true
-rm -rf "$HOME/.config/Electron/Code Cache"/* 2>/dev/null || true
-sudo rm -rf /tmp/.org.chromium.Chromium.* 2>/dev/null || true
-mkdir -p "$HOME/.config/Electron/Code Cache/pc" 2>/dev/null || true
 
 # Check if we need to wrap in dbus-run-session
 if command -v dbus-run-session >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
     echo "[*] Wrapping Electron in dbus-run-session..."
-    dbus-run-session -- npm run gui
+    dbus-run-session -- npm run gui -- --no-sandbox
 else
-    # We run this as the current user, so it has access to the X server/DISPLAY
-    npm run gui
+    npm run gui -- --no-sandbox
 fi

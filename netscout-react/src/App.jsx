@@ -16,7 +16,7 @@ export default function App() {
   const ns = useNetScout()
   const {
     devices, visible, hidden, online, trusted, unsafe, intelHistory, alerts, unacked,
-    status, scanning, scanMsg, connected, hiddenMacs,
+    status, scanning, scanMsg, connected, hiddenMacs, routerInfo,
     triggerScan, blockDevice, removeDevice, investigateDevice,
     ackAlert, ackAll, hideDevice, clearHidden,
     checkUpdates, addDevice, fetchAll, markIntel,
@@ -209,6 +209,7 @@ export default function App() {
               unsafe={unsafe}
               alerts={alerts}
               status={status}
+              routerInfo={routerInfo}
               scanning={scanning}
               hiddenMacs={hiddenMacs}
               onSelectDevice={handleSelectDevice}  // FIX: consistent handler
