@@ -253,15 +253,18 @@ class DeviceRepository:
         mac = device_data.get("mac", "").upper()
         ip = device_data.get("ip", "")
         
-        # FIX BE-01: strictly require MAC for device identity in this repository
-        if not mac:
+        # IF we don't have a MAC, we allow it ONLY if we have an IP (stub device)
+        if not mac and not ip:
             return None
 
-        # Try MAC first
-        device = self.db.query(Device).filter_by(mac=mac).first()
+        # Try MAC first if available
+        device = None
+        if mac:
+            device = self.db.query(Device).filter_by(mac=mac).first()
         
         if not device and ip:
-            # If no MAC match, try IP match for devices that also don't have a MAC
+            # If no MAC match or no MAC provided, try IP match for devices that also don't have a MAC
+            # This allows updating a stub device
             device = self.db.query(Device).filter_by(ip=ip, mac="").first()
 
         if device:
