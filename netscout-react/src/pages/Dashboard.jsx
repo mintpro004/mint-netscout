@@ -6,12 +6,13 @@ import styles from './Dashboard.module.css'
 
 /* ── Radar ───────────────────────────────────────────────────────────────── */
 function Radar({ devices, scanning, onSelect }) {
-  const online = devices.filter(d => d.is_online)
+  const online = useMemo(() => devices.filter(d => d.is_online), [devices])
 
+  // Optimization: Reduce number of dots on radar for Chromebook performance
   const dots = useMemo(() =>
-    online.slice(0, 20).map((d, i) => {
+    online.slice(0, 15).map((d, i) => {
       const angle = (i / Math.max(online.length, 1)) * Math.PI * 2 - Math.PI / 2 + (i % 4) * 0.22
-      const r = 20 + (i % 5) * 12
+      const r = 25 + (i % 4) * 10
       return { x: 50 + r * Math.cos(angle), y: 50 + r * Math.sin(angle), d }
     }), [online])
 
@@ -22,7 +23,8 @@ function Radar({ devices, scanning, onSelect }) {
           <div key={s} className={styles.ring} style={{ width: `${s}%`, height: `${s}%` }} />
         ))}
         <div className={styles.cross} />
-        {(scanning || online.length > 0) && (
+        {/* Only show sweep if scanning to save CPU */}
+        {scanning && (
           <div className={styles.sweepWrap}><div className={styles.arm} /></div>
         )}
         <div className={styles.center} />
@@ -32,7 +34,7 @@ function Radar({ devices, scanning, onSelect }) {
             className={styles.dot}
             style={{ left: `${x}%`, top: `${y}%` }}
             title={d.alias || d.hostname || d.ip}
-            onClick={() => onSelect(d.mac || d.ip)}  // FIX: pass MAC string, not object
+            onClick={() => onSelect(d.mac || d.ip)} 
           />
         ))}
       </div>

@@ -6,6 +6,7 @@ app.disableHardwareAcceleration()
 
 // Force X11 and disable all possible GPU/DRM/Sandbox probes
 app.commandLine.appendSwitch('ozone-platform', 'x11')
+app.commandLine.appendSwitch('ozone-platform-hint', 'x11')
 app.commandLine.appendSwitch('disable-gpu')
 app.commandLine.appendSwitch('no-sandbox')
 app.commandLine.appendSwitch('disable-gpu-sandbox')
@@ -19,7 +20,7 @@ app.commandLine.appendSwitch('in-process-gpu')
 app.commandLine.appendSwitch('no-zygote')
 app.commandLine.appendSwitch('disable-setuid-sandbox')
 app.commandLine.appendSwitch('disable-namespace-sandbox')
-app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor,WaylandWindowDecorations')
+app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor,WaylandWindowDecorations,WaylandFractionalScaleV1')
 
 function createWindow() {
   const win = new BrowserWindow({

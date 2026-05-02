@@ -82,8 +82,9 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 # Compatibility env vars for Chromebook/Crostini
-export QT_X11_NO_MITSHM=1
-export _X11_NO_MITSHM=1
+# KILL WAYLAND: This is the critical fix for the DRM errors
+unset WAYLAND_DISPLAY
+export XDG_SESSION_TYPE=x11
 export GDK_BACKEND=x11
 export ELECTRON_DISABLE_GPU=1
 export ELECTRON_OZONE_PLATFORM_HINT=x11
@@ -97,6 +98,8 @@ export MESA_LOADER_DRIVER_OVERRIDE=swrast
 export NO_AT_BRIDGE=1
 export GALLIUM_DRIVER=llvmpipe
 export GSK_RENDERER=cairo
+export QT_X11_NO_MITSHM=1
+export _X11_NO_MITSHM=1
 
 # Clean Boot: Clear stale Electron caches and temporary memory segments
 echo "[*] Optimizing system for Fast Boot..."
