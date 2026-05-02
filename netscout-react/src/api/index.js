@@ -34,6 +34,7 @@ export const api = {
   getUnsafe:       ()          => get('/api/intel/unsafe'),
   getIntelHistory: ()          => get('/api/intel/history'),
   checkUpdates:    ()          => get('/api/update/check'),
+  applyUpdate:     ()          => post('/api/update/apply'),
   getRouterInfo:   ()          => get('/api/router'),
   getSystemStats:  ()          => get('/api/system/stats'),
 

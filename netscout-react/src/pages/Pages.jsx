@@ -70,12 +70,15 @@ export function Threats({ unsafe, history, onSelectDevice, onBlock, onMark }) {
               <div className={styles.threatInfo}>
                 <div className={styles.threatName} style={{ color: h.is_malicious ? '#ff2255' : '#00ffaa' }}>
                   {h.domain}
+                  {h.is_malicious && <span style={{ marginLeft: 10, fontSize: 10, color: '#ff2255', verticalAlign: 'middle' }}>[THREAT DETECTED]</span>}
                 </div>
                 <div className={styles.threatSub}>
-                  Visited by: {h.device?.hostname || h.device?.ip || 'Unknown'}
+                  Device: <span style={{ color: 'var(--mint)' }}>{h.device?.alias || h.device?.hostname || h.device?.ip || 'Unknown'}</span>
+                  {h.device?.mac && <span style={{ marginLeft: 8, opacity: 0.6 }}>({h.device.mac})</span>}
                 </div>
               </div>
-              <div className={styles.threatActions} style={{ marginLeft: 'auto' }}>
+              <div className={styles.threatActions} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className={styles.xs} style={{ minWidth: 80, textAlign: 'right', opacity: 0.7 }}>{fmtTime(h.timestamp)}</div>
                 <Btn
                   variant={h.is_malicious ? 'mint' : 'red'} size="xs"
                   onClick={() => onMark(h.domain, h.is_malicious ? 'safe' : 'unsafe')}
@@ -83,7 +86,6 @@ export function Threats({ unsafe, history, onSelectDevice, onBlock, onMark }) {
                   {h.is_malicious ? 'TRUST' : 'BAN'}
                 </Btn>
               </div>
-              <div className={styles.xs} style={{ minWidth: 80, textAlign: 'right' }}>{fmtTime(h.timestamp)}</div>
             </div>
           ))}
         </div>

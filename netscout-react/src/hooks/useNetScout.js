@@ -178,6 +178,7 @@ export function useNetScout() {
     fetchAll, triggerScan, trustDevice, blockDevice, removeDevice,
     investigateDevice, ackAlert, ackAll, hideDevice, clearHidden, markIntel,
     checkUpdates: api.checkUpdates,
+    applyUpdate:  api.applyUpdate,
     addDevice: api.addDevice,
   }
 }

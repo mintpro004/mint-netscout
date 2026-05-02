@@ -19,7 +19,7 @@ export default function App() {
     status, scanning, scanMsg, connected, hiddenMacs, routerInfo,
     triggerScan, blockDevice, removeDevice, investigateDevice,
     ackAlert, ackAll, hideDevice, clearHidden,
-    checkUpdates, addDevice, fetchAll, markIntel,
+    checkUpdates, applyUpdate, addDevice, fetchAll, markIntel,
   } = ns
 
   const [view,        setView]        = useState('dashboard')
@@ -113,11 +113,23 @@ export default function App() {
     }
   }
 
-  const handleApplyUpdate = () => {
+  const handleApplyUpdate = async () => {
     setUpdateInfo(null)
-    setUpdLoading(false)
-    toast.info('Downloading update…')
-    setTimeout(() => { toast.success('Update applied — restart to activate'); fetchAll() }, 3000)
+    setUpdLoading(true)
+    toast.info('Downloading and applying update…')
+    try {
+      const res = await applyUpdate()
+      if (res.success) {
+        toast.success(res.message || 'Update applied successfully')
+      } else {
+        toast.error('Update failed: ' + (res.error || 'Unknown error'))
+      }
+    } catch (e) {
+      toast.error('Update failed: ' + e.message)
+    } finally {
+      setUpdLoading(false)
+      fetchAll()
+    }
   }
 
   const handleHide = (mac) => {

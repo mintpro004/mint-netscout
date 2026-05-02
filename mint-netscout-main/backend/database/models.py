@@ -294,6 +294,11 @@ class DeviceRepository:
             if device_data.get("os_hint"):
                 device.os_hint = device_data["os_hint"]
             
+            # Update ports only if new discovery found some
+            if device_data.get("open_ports"):
+                import json
+                device.open_ports = json.dumps(device_data["open_ports"])
+            
             # MANUALLY PRESERVE AND LOG STATE PROTECTION
             # We do NOT touch is_blocked, is_trusted, is_registered here
         else:
@@ -354,10 +359,15 @@ class DeviceRepository:
             # Convert set elements to uppercase for safety
             mac_list = [str(m).upper() for m in active_macs if m]
             
+            # Recently seen cutoff (5 mins) for stub devices added manually
+            recent_cutoff = time.time() - 300
+            
             # Update all that are NOT in the list and currently online
+            # We skip devices with NO mac if they were seen very recently (manual add)
             self.db.query(Device).filter(
                 Device.mac.notin_(mac_list),
-                Device.is_online == True
+                Device.is_online == True,
+                ~((Device.mac == "") & (Device.last_seen > recent_cutoff))
             ).update({"is_online": False}, synchronize_session=False)
             
             self.db.commit()
@@ -377,6 +387,7 @@ class DeviceRepository:
             device.alias = alias
             device.is_registered = True
             self.db.commit()
+        return device
 
     def get_stats(self) -> dict:
         total = self.db.query(func.count(Device.id)).scalar()

@@ -88,6 +88,43 @@ def _sync_sniffer_blocking():
         finally:
             db.close()
 
+def _run_investigation(ip, mac=None):
+    """Internal helper to run a deep scan on a host and update DB."""
+    db = get_db()
+    try:
+        from backend.core.engine import DiscoveryEngine
+        engine = DiscoveryEngine()
+        # Single host scan
+        results = engine.scan_network(subnet=f"{ip}/32", aggressive=True)
+        
+        if results:
+            found = results[0]
+            repo = DeviceRepository(db)
+            # Find the device - prefer MAC if we have it, else IP
+            device = None
+            if mac:
+                device = repo.get_by_mac(mac)
+            if not device:
+                device = repo.get_by_ip(ip)
+                
+            if device:
+                device.hostname = found.hostname or device.hostname
+                device.vendor = found.vendor or device.vendor
+                device.device_type = found.device_type or device.device_type
+                device.os_hint = found.os_hint or device.os_hint
+                device.is_online = True
+                
+                import json
+                device.open_ports = json.dumps(found.open_ports)
+                db.commit()
+                logger.info(f"✅ Deep investigation complete for {ip}")
+                return device.to_dict()
+    except Exception as e:
+        logger.error(f"Error in _run_investigation for {ip}: {e}")
+    finally:
+        db.close()
+    return None
+
 @socketio.on("disconnect")
 def on_disconnect(*args):
     logger.info(f"🔌 Client disconnected: {request.sid}")
@@ -173,7 +210,11 @@ def add_device_manual():
             "is_trusted": True
         }
         repo.upsert_device(device_data)
-        return jsonify({"success": True, "message": f"Device {ip} added successfully"})
+        
+        # Trigger background investigation
+        socketio.start_background_task(_run_investigation, ip, mac)
+        
+        return jsonify({"success": True, "message": f"Device {ip} added and investigation initiated"})
     finally:
         db.close()
 
@@ -215,9 +256,35 @@ def check_updates():
             "current_version": current_version,
             "latest_version": current_version,
             "update_available": False,
-            "error": "Could not contact update server",
+            "error": f"Could not contact update server: {e}",
             "last_checked": time.time()
         })
+
+@app.route("/api/update/apply", methods=["POST"])
+def apply_update():
+    """Real Git-based update applier."""
+    import subprocess
+    try:
+        # 1. Fetch latest changes
+        logger.info("⬇️ Initiating system update (git pull)...")
+        output = subprocess.check_output(["git", "pull"], stderr=subprocess.STDOUT, text=True)
+        logger.info(f"✅ Update output: {output}")
+        
+        # 2. Check if anything actually changed
+        if "Already up to date" in output:
+            return jsonify({"success": True, "message": "System is already up to date"})
+            
+        return jsonify({
+            "success": True, 
+            "message": "Update applied successfully. Please restart the application to activate changes.",
+            "output": output
+        })
+    except subprocess.CalledProcessError as e:
+        logger.error(f"❌ Update failed: {e.output}")
+        return jsonify({"success": False, "error": f"Git pull failed: {e.output}"}), 500
+    except Exception as e:
+        logger.error(f"❌ Update error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/devices", methods=["GET"])
 def get_devices():
@@ -259,7 +326,12 @@ def register_device(mac):
     db = get_db()
     try:
         repo = DeviceRepository(db)
-        repo.register_device(mac, alias)
+        device = repo.register_device(mac, alias)
+        
+        # Trigger refresh of properties
+        if device and device.ip:
+            socketio.start_background_task(_run_investigation, device.ip, mac)
+            
         return jsonify({"success": True, "mac": mac, "alias": alias})
     finally:
         db.close()
@@ -320,30 +392,16 @@ def investigate_device(mac):
         
         logger.info(f"🔍 Deep investigation of device {device.ip}...")
         
-        # Aggressive scan for this specific host
-        from backend.core.engine import DiscoveryEngine
-        engine = DiscoveryEngine()
-        # Note: subnet can be just the IP for a single host scan
-        results = engine.scan_network(subnet=f"{device.ip}/32", aggressive=True)
+        # Use our helper
+        updated_data = _run_investigation(device.ip, mac)
         
-        if results:
-            found = results[0]
-            device.hostname = found.hostname or device.hostname
-            device.vendor = found.vendor or device.vendor
-            device.device_type = found.device_type or device.device_type
-            device.os_hint = found.os_hint or device.os_hint
-            device.is_online = True
-            
-            # Convert open_ports to JSON for DB storage
-            import json
-            device.open_ports = json.dumps(found.open_ports)
-            db.commit()
-        
+        if not updated_data:
+            return jsonify({"success": False, "error": "Investigation failed to produce results"}), 500
+
         # Calculate risk summary
-        from backend.modules.port_scanner import OpenPort
+        from backend.modules.port_scanner import OpenPort, PortScanner
         open_ports_obj = []
-        import json
-        for p in json.loads(device.open_ports or "[]"):
+        for p in updated_data.get("open_ports", []):
             if isinstance(p, dict):
                 open_ports_obj.append(OpenPort(
                     port=p.get('port'), 
@@ -353,23 +411,21 @@ def investigate_device(mac):
                     banner=p.get('banner', '')
                 ))
             else:
-                # Fallback for simple int list
                 open_ports_obj.append(OpenPort(port=p, service='unknown', icon='🔓', risk='unknown'))
 
         risk = PortScanner.risk_summary(open_ports_obj)
         
         return jsonify({
             "success": True, 
-            "device": device.to_dict(),
-            "ports": json.loads(device.open_ports),
+            "device": updated_data,
+            "ports": updated_data.get("open_ports", []),
             "risk": {
                 "level": risk["overall"],
-                "reason": f"Device has {len(open_ports_obj)} open ports. Highest risk: {risk['overall'].upper()}."
+                "reason": f"Device has {len(open_ports_obj)} open ports. Highest risk detected: {risk['overall'].upper()}."
             }
         })
     except Exception as e:
         logger.error(f"Investigate error: {e}", exc_info=True)
-        db.rollback()
         return jsonify({"error": str(e)}), 500
     finally:
         db.close()

@@ -10,9 +10,10 @@ function Radar({ devices, scanning, onSelect }) {
 
   // Optimization: Reduce number of dots on radar for Chromebook performance
   const dots = useMemo(() =>
-    online.slice(0, 15).map((d, i) => {
-      const angle = (i / Math.max(online.length, 1)) * Math.PI * 2 - Math.PI / 2 + (i % 4) * 0.22
-      const r = 25 + (i % 4) * 10
+    online.slice(0, 30).map((d, i) => {
+      // Spiral-like distribution for better visual clarity
+      const angle = (i * 137.5) * (Math.PI / 180) // Golden angle
+      const r = 8 + (i * 1.2) // Increasing radius
       return { x: 50 + r * Math.cos(angle), y: 50 + r * Math.sin(angle), d }
     }), [online])
 
@@ -184,12 +185,62 @@ export default function Dashboard({
                 <span className={styles.infoVal}>{v}</span>
               </div>
             ))}
+            
+            {systemStats && (
+              <div style={{ marginTop: 15 }}>
+                <div className={styles.infoLbl} style={{ fontSize: 9, marginBottom: 10 }}>RESOURCE UTILIZATION</div>
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
+                    <span>CPU USAGE</span>
+                    <span>{systemStats.cpu_usage}%</span>
+                  </div>
+                  <div style={{ background: 'var(--b2)', height: 4, borderRadius: 2 }}>
+                    <div style={{ background: 'var(--gold)', height: '100%', width: `${systemStats.cpu_usage}%`, borderRadius: 2, transition: 'width 0.5s' }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, marginBottom: 4 }}>
+                    <span>MEM USAGE</span>
+                    <span>{systemStats.memory_usage}%</span>
+                  </div>
+                  <div style={{ background: 'var(--b2)', height: 4, borderRadius: 2 }}>
+                    <div style={{ background: 'var(--cyan)', height: '100%', width: `${systemStats.memory_usage}%`, borderRadius: 2, transition: 'width 0.5s' }} />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </Panel>
 
         <Panel accent="cyan">
           <PanelHeader title="Gateway Analysis" />
           <div className={styles.panelBody}>
+            {latData.length > 0 ? (
+              <div style={{ width: '100%', height: 120, marginBottom: 20 }}>
+                <div className={styles.infoLbl} style={{ marginBottom: 5 }}>LATENCY TREND (ms)</div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={latData}>
+                    <defs>
+                      <linearGradient id="colorMs" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--cyan)" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="var(--cyan)" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="t" hide />
+                    <YAxis hide domain={[0, 'auto']} />
+                    <Tooltip content={<ChartTip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="ms" 
+                      stroke="var(--cyan)" 
+                      fillOpacity={1} 
+                      fill="url(#colorMs)" 
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : null}
             {!status?.networks?.[0]?.gateway ? (
               <div className={styles.empty}>IDENTIFYING GATEWAY...</div>
             ) : (

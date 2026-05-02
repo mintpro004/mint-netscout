@@ -498,8 +498,11 @@ class DiscoveryEngine:
             targets = nets
 
         all_devices: Dict[str, DiscoveredDevice] = {}
-        has_perms, _ = check_permissions()
+        has_perms, perm_msg = check_permissions()
         primary_iface = interface or (targets[0]['interface'] if targets else None)
+
+        if not has_perms:
+            logger.warning(f"⚠️  PRIVILEGE WARNING: {perm_msg}. Falling back to ICMP-only discovery.")
 
         with self._scan_lock:
             self._scan_running = True
