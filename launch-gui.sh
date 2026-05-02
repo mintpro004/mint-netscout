@@ -97,6 +97,12 @@ export LIBGL_ALWAYS_SOFTWARE=1
 export MESA_LOADER_DRIVER_OVERRIDE=swrast
 export NO_AT_BRIDGE=1
 
+# Clean Boot: Clear stale Electron caches and temporary memory segments
+echo "[*] Optimizing system for Fast Boot..."
+rm -rf "$HOME/.config/Electron/Cache"/* 2>/dev/null || true
+rm -rf "$HOME/.config/Electron/Code Cache"/* 2>/dev/null || true
+sudo rm -rf /tmp/.org.chromium.Chromium.* 2>/dev/null || true
+
 # Check if we need to wrap in dbus-run-session
 if command -v dbus-run-session >/dev/null 2>&1 && [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
     echo "[*] Wrapping Electron in dbus-run-session..."

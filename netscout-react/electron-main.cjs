@@ -4,10 +4,11 @@ const path = require('path')
 // TOTAL HARDWARE BYPASS: Explicitly disable GPU at the engine level
 app.disableHardwareAcceleration()
 
-// Force X11 and disable all possible GPU/DRM probes
+// Force X11 and disable all possible GPU/DRM/Sandbox probes
 app.commandLine.appendSwitch('ozone-platform', 'x11')
 app.commandLine.appendSwitch('disable-gpu')
 app.commandLine.appendSwitch('no-sandbox')
+app.commandLine.appendSwitch('disable-gpu-sandbox')
 app.commandLine.appendSwitch('disable-software-rasterizer')
 app.commandLine.appendSwitch('disable-dev-shm-usage')
 app.commandLine.appendSwitch('disable-gpu-compositing')
@@ -19,8 +20,6 @@ app.commandLine.appendSwitch('no-zygote')
 app.commandLine.appendSwitch('disable-setuid-sandbox')
 app.commandLine.appendSwitch('disable-namespace-sandbox')
 app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor')
-app.commandLine.appendSwitch('enable-logging', 'stderr')
-app.commandLine.appendSwitch('v', '1')
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -33,9 +32,9 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       spellcheck: false,
-      backgroundThrottling: false, // Prevent freezing when unfocused
+      backgroundThrottling: false,
     },
-    icon: path.join(__dirname, 'public', 'favicon.svg')
+    icon: path.join(__dirname, '..', 'netscout-react', 'public', 'favicon.svg')
   })
 
   // Load the local Flask server
