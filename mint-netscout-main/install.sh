@@ -111,8 +111,13 @@ fi
 # 6. Initialize Database
 log "Initializing intelligence database..."
 PYTHONPATH=$DIR "$DIR/.venv/bin/python3" -c "from backend.database.models import init_db; init_db()"
+
+# CRITICAL: Fix permissions for both sudo and non-sudo runs
 if [ -n "$SUDO_USER" ]; then
-    chown -R "$SUDO_USER":"$SUDO_USER" data/ 2>/dev/null || true
+    chown -R "$SUDO_USER":"$SUDO_USER" data/
+    chmod -R 775 data/
+else
+    chmod -R 775 data/
 fi
 
 # 7. Generate Smart Launcher
