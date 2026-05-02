@@ -2,11 +2,12 @@ const { app, BrowserWindow, ipcMain, nativeTheme } = require('electron')
 const path = require('path')
 
 // Essential compatibility switches for Linux/Crostini stability
-// The 'dangling raw_ptr' crash is a known Chromium issue on some Linux envs with sandbox
 app.commandLine.appendSwitch('no-sandbox')
 app.commandLine.appendSwitch('disable-setuid-sandbox')
 app.commandLine.appendSwitch('disable-gpu-sandbox')
+app.commandLine.appendSwitch('disable-dev-shm-usage') // Fixes /dev/shm permission issues
 app.commandLine.appendSwitch('ozone-platform', 'x11')
+app.commandLine.appendSwitch('disable-gpu') // Force software rendering for stability in VMs
 
 function createWindow() {
   const win = new BrowserWindow({
