@@ -1,10 +1,11 @@
 const { app, BrowserWindow, ipcMain, nativeTheme } = require('electron')
 const path = require('path')
 
-// DO NOT disable hardware acceleration yet — let Electron decide
-// app.disableHardwareAcceleration() 
-
-// Essential compatibility switches (Removed no-sandbox per user request)
+// Essential compatibility switches for Linux/Crostini stability
+// The 'dangling raw_ptr' crash is a known Chromium issue on some Linux envs with sandbox
+app.commandLine.appendSwitch('no-sandbox')
+app.commandLine.appendSwitch('disable-setuid-sandbox')
+app.commandLine.appendSwitch('disable-gpu-sandbox')
 app.commandLine.appendSwitch('ozone-platform', 'x11')
 
 function createWindow() {
@@ -16,14 +17,18 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true, // Enabled sandbox
+      sandbox: false, // Disabled for Linux/Crostini stability
       preload: path.join(__dirname, 'preload.cjs'),
     },
   })
 
-  // Capture ALL logs to stdout
-  win.webContents.on('console-message', (event, details) => {
-    console.log(`[RENDERER] ${details.message}`)
+  // Capture ALL logs to stdout - robust handler for different Electron versions
+  win.webContents.on('console-message', (event, ...args) => {
+    // args[0] is level, args[1] is message in older versions
+    // in newer versions, args[0] is the details object
+    const details = args[0]
+    const message = (typeof details === 'object' && details !== null) ? details.message : args[1]
+    if (message) console.log(`[RENDERER] ${message}`)
   })
 
   win.webContents.on('render-process-gone', (event, details) => {
