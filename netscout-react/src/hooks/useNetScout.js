@@ -9,6 +9,7 @@ export function useNetScout() {
   const [routerInfo, setRouterInfo] = useState(null)
   const [systemStats, setSystemStats] = useState(null)
   const [alerts,     setAlerts]    = useState([])
+  const [liveTraffic, setLiveTraffic] = useState([])
   const [scanning,   setScanning]  = useState(false)
   const [scanMsg,    setScanMsg]   = useState('')
   const [connected,  setConnected] = useState(false)
@@ -40,6 +41,7 @@ export function useNetScout() {
     sock.on('scan_progress', d  => { setScanning(true); setScanMsg(d.message || 'Scanning…') })
     sock.on('scan_complete', () => { setScanning(false); setScanMsg(''); fetchAll() }) // always re-fetch — don't trust partial payload
     sock.on('scan_error',    () => { setScanning(false); setScanMsg('') })
+    sock.on('live_traffic',  t  => setLiveTraffic(p => [t, ...p].slice(0, 100)))
     sock.on('alert',         a  => setAlerts(p => [{ ...a, _id: Date.now() + Math.random() }, ...p].slice(0, 200)))
 
     fetchAll()
@@ -173,7 +175,7 @@ export function useNetScout() {
   const unacked = useMemo(() => alerts.filter(a => !a.acked),                 [alerts])
 
   return {
-    devices, visible, hidden, online, trusted, unsafe, intelHistory, status, routerInfo, systemStats, alerts, unacked,
+    devices, visible, hidden, online, trusted, unsafe, intelHistory, liveTraffic, status, routerInfo, systemStats, alerts, unacked,
     scanning, scanMsg, connected, hiddenMacs,
     fetchAll, triggerScan, trustDevice, blockDevice, removeDevice,
     investigateDevice, ackAlert, ackAll, hideDevice, clearHidden, markIntel,

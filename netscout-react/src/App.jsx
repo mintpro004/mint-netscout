@@ -15,8 +15,8 @@ import styles             from './App.module.css'
 export default function App() {
   const ns = useNetScout()
   const {
-    devices, visible, hidden, online, trusted, unsafe, intelHistory, alerts, unacked,
-    status, scanning, scanMsg, connected, hiddenMacs, routerInfo,
+    devices, visible, hidden, online, trusted, unsafe, intelHistory, liveTraffic, alerts, unacked,
+    status, scanning, scanMsg, connected, hiddenMacs, routerInfo, systemStats,
     triggerScan, blockDevice, removeDevice, investigateDevice,
     ackAlert, ackAll, hideDevice, clearHidden,
     checkUpdates, applyUpdate, addDevice, fetchAll, markIntel,
@@ -222,12 +222,15 @@ export default function App() {
               alerts={alerts}
               status={status}
               routerInfo={routerInfo}
+              systemStats={systemStats}
               scanning={scanning}
               hiddenMacs={hiddenMacs}
-              onSelectDevice={handleSelectDevice}  // FIX: consistent handler
+              liveTraffic={liveTraffic}
+              onSelectDevice={setSelectedMac}
               onAck={ackAlert}
             />
           )}
+
 
           {view === 'devices' && (
             <Devices

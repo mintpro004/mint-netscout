@@ -79,8 +79,8 @@ function ChartTip({ active, payload }) {
 
 /* ── Dashboard ───────────────────────────────────────────────────────────── */
 export default function Dashboard({
-  visible, online, trusted, unsafe, alerts, status, routerInfo,
-  scanning, hiddenMacs, onSelectDevice, onAck
+  visible, online, trusted, unsafe, alerts, status, routerInfo, systemStats,
+  scanning, hiddenMacs, liveTraffic, onSelectDevice, onAck
 }) {
   const latData = useMemo(() =>
     online
@@ -132,14 +132,38 @@ export default function Dashboard({
 
       {/* Radar + Alert feed */}
       <div className={styles.row73}>
-        <Panel accent="mint">
-          <PanelHeader title="Network Topology">
-            {scanning && <Tag variant="gold">◈ SWEEPING</Tag>}
-          </PanelHeader>
-          <div className={styles.panelBody}>
-            <Radar devices={visible} scanning={scanning} onSelect={onSelectDevice} />
-          </div>
-        </Panel>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <Panel accent="mint">
+            <PanelHeader title="Network Topology">
+              {scanning && <Tag variant="gold">◈ SWEEPING</Tag>}
+            </PanelHeader>
+            <div className={styles.panelBody}>
+              <Radar devices={visible} scanning={scanning} onSelect={onSelectDevice} />
+            </div>
+          </Panel>
+
+          <Panel accent="cyan">
+            <PanelHeader title="Real-time Traffic Stream" />
+            <div className={styles.panelBody} style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {liveTraffic.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {liveTraffic.slice(0, 15).map((t, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, fontSize: 9, fontFamily: 'var(--f-data)', borderBottom: '1px solid #ffffff05', paddingBottom: 4 }}>
+                      <span style={{ color: 'var(--cyan)', minWidth: 50 }}>{fmtTime(t.timestamp)}</span>
+                      <span style={{ color: 'var(--mint)', minWidth: 80 }}>{t.device?.alias || t.device?.ip}</span>
+                      <span style={{ color: t.is_malicious ? 'var(--red)' : '#fff', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {t.domain}
+                      </span>
+                      {t.is_malicious && <span style={{ color: 'var(--red)', fontWeight: 'bold' }}>[!]</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.empty}>WAITING FOR TRAFFIC...</div>
+              )}
+            </div>
+          </Panel>
+        </div>
 
         <Panel accent="red">
           <PanelHeader title="Alert Feed">

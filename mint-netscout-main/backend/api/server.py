@@ -612,6 +612,15 @@ def start_background_tasks():
                     mac_to_use = dev.mac or f"STUB:{dev.ip}"
                     is_malicious = repo.log_visit(mac_to_use, domain)
                     
+                    # 🚀 REAL-TIME: Emit packet event for live dashboard
+                    socketio.emit("live_traffic", {
+                        "ip": ip,
+                        "domain": domain,
+                        "is_malicious": is_malicious,
+                        "timestamp": time.time(),
+                        "device": dev.to_dict()
+                    })
+
                     if is_malicious:
                         emit_alert(NetworkAlert(
                             "threat_detected", 
